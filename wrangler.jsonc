@@ -1,0 +1,60 @@
+// field — Cloudflare Workers config.
+// Self-hosting: create the D1 database (see README), put its id below, adjust APPS to your
+// own services and point the service bindings at your Worker names. Bindings you don't
+// have can simply be removed: the matching admin screen hides itself.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "field",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  "workers_dev": false,
+  // "routes": [{ "pattern": "field.example.com", "custom_domain": true }],
+
+  "triggers": { "crons": ["*/5 * * * *"] },
+
+  "d1_databases": [
+    { "binding": "DB", "database_name": "field-db", "database_id": "<your-field-db-id>", "migrations_dir": "migrations" },
+    // Read/write access to the apps' own databases, for stats and admin actions.
+    { "binding": "DROP_DB", "database_name": "drop-db", "database_id": "<drop-db-id>" },
+    { "binding": "CONVERT_DB", "database_name": "convert-db", "database_id": "<convert-db-id>" },
+    { "binding": "GROW_DB", "database_name": "grow-cloud", "database_id": "<grow-db-id>" },
+    { "binding": "ROOTS_DB", "database_name": "roots", "database_id": "<roots-db-id>" }
+  ],
+  "r2_buckets": [{ "binding": "CONVERT_FILES", "bucket_name": "convert-files" }],
+  "queues": { "producers": [{ "binding": "ROOTS_QUEUE", "queue": "roots-index" }] },
+
+  // Health checks go through service bindings: no public round trip, no Access in the way.
+  "services": [
+    { "binding": "DROP", "service": "drop" },
+    { "binding": "CONVERT", "service": "convert" },
+    { "binding": "GROW", "service": "grow-cloud" },
+    { "binding": "ROOTS", "service": "roots" },
+    { "binding": "PETAL", "service": "petal" }
+  ],
+
+  "vars": {
+    // Cloudflare Access: your team domain and the AUD tag of the Access application in front of field.
+    "ACCESS_TEAM_DOMAIN": "<your-team>.cloudflareaccess.com",
+    "ACCESS_AUD": "<access-application-aud>",
+    "ORG_NAME": "shiftbloom studio",
+    "TZ": "Europe/Berlin",
+    "RETENTION_DAYS": "30",
+    "SOURCE_URL": "https://github.com/shiftbloom-studio/field",
+    "APPS": [
+      { "id": "drop", "name": "drop", "url": "https://drop.example.com", "blurb": "Files, pastes and short links", "service": "DROP", "health": "/health", "db": "DROP_DB", "adapter": "drop" },
+      { "id": "convert", "name": "convert", "url": "https://convert.example.com", "blurb": "Converts images, video and audio", "service": "CONVERT", "health": "/api/health", "db": "CONVERT_DB", "adapter": "convert" },
+      { "id": "grow", "name": "grow", "url": "https://grow.example.com", "blurb": "To-do overlays for OBS", "service": "GROW", "health": "/healthz", "db": "GROW_DB", "adapter": "grow" },
+      // roots sits behind Access and answers 401 without a token: that still proves the Worker is up.
+      { "id": "kb", "name": "roots", "url": "https://kb.example.com", "blurb": "Knowledge base over repos and docs", "service": "ROOTS", "health": "/", "expect": [401], "db": "ROOTS_DB", "adapter": "roots" },
+      { "id": "petal", "name": "petal", "url": "https://chat.example.com", "blurb": "Twitch chat relay", "service": "PETAL", "health": "/health" },
+      { "id": "runners", "name": "runners", "blurb": "Self-hosted GitHub Actions Runner", "status": "planned" },
+      { "id": "memory", "name": "memory", "blurb": "Memory for agents", "status": "planned" }
+    ],
+    "LINKS": [
+      { "name": "Cloudflare", "url": "https://dash.cloudflare.com", "note": "Dashboard" },
+      { "name": "GitHub", "url": "https://github.com/shiftbloom-studio", "note": "All repositories" }
+    ]
+  }
+  // Optional secret: ALERT_WEBHOOK (Discord or Slack incoming webhook) → `npx wrangler secret put ALERT_WEBHOOK`
+}
