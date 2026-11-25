@@ -9,6 +9,7 @@
   "compatibility_date": "2026-11-01",
   "observability": { "enabled": true },
   "workers_dev": false,
+  "preview_urls": false,
   // "routes": [{ "pattern": "field.example.com", "custom_domain": true }],
 
   "triggers": { "crons": ["*/5 * * * *"] },
@@ -19,7 +20,9 @@
     { "binding": "DROP_DB", "database_name": "drop-db", "database_id": "<drop-db-id>" },
     { "binding": "CONVERT_DB", "database_name": "convert-db", "database_id": "<convert-db-id>" },
     { "binding": "GROW_DB", "database_name": "grow-cloud", "database_id": "<grow-db-id>" },
-    { "binding": "ROOTS_DB", "database_name": "roots", "database_id": "<roots-db-id>" }
+    { "binding": "ROOTS_DB", "database_name": "roots", "database_id": "<roots-db-id>" },
+    // rhizome's control plane (clients and hashed API keys only, never memory content).
+    { "binding": "RHIZOME_DB", "database_name": "rhizome-control", "database_id": "<rhizome-control-db-id>" }
   ],
   "r2_buckets": [{ "binding": "CONVERT_FILES", "bucket_name": "convert-files" }],
   "queues": { "producers": [{ "binding": "ROOTS_QUEUE", "queue": "roots-index" }] },
@@ -30,7 +33,8 @@
     { "binding": "CONVERT", "service": "convert" },
     { "binding": "GROW", "service": "grow-cloud" },
     { "binding": "ROOTS", "service": "roots" },
-    { "binding": "PETAL", "service": "petal" }
+    { "binding": "PETAL", "service": "petal" },
+    { "binding": "RHIZOME", "service": "rhizome" }
   ],
 
   "vars": {
@@ -66,7 +70,7 @@
       { "id": "roots", "name": "roots", "url": "https://roots.example.com", "blurb": "Knowledge base over repos and docs", "service": "ROOTS", "health": "/", "expect": [401], "db": "ROOTS_DB", "adapter": "roots" },
       { "id": "petal", "name": "petal", "url": "https://chat.example.com", "blurb": "Twitch chat relay", "service": "PETAL", "health": "/health" },
       { "id": "runners", "name": "runners", "blurb": "Self-hosted GitHub Actions Runner", "status": "planned" },
-      { "id": "memory", "name": "memory", "blurb": "Memory for agents", "status": "planned" }
+      { "id": "rhizome", "name": "rhizome", "url": "https://rhizome.example.com", "blurb": "Long-term memory for AI agents", "service": "RHIZOME", "health": "/v1/health", "db": "RHIZOME_DB", "adapter": "rhizome" }
     ],
     "LINKS": [
       { "name": "Cloudflare", "url": "https://dash.cloudflare.com", "note": "Dashboard" },

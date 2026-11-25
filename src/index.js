@@ -4,12 +4,13 @@
 import { verifyAccess } from "./auth.js";
 import { apps, app as findApp, links, tz } from "./config.js";
 import { runAll, prune, probe, record, uptime, history, historyAll } from "./health.js";
-import { adapterFor } from "./adapters/index.js";
+import { adapterFor, tokensFor } from "./adapters/index.js";
+import { readTokenForm } from "./tokens.js";
 import { runWatchers, WATCHERS } from "./watch.js";
 import { handleAsset } from "./assets.js";
 import { imprint, privacy } from "./legal.js";
 import { faviconSvg } from "./brand.js";
-import { overviewPage, appPage, auditPage, errorPage, health } from "./ui.js";
+import { overviewPage, appPage, auditPage, errorPage, health, tokenCreatedPage } from "./ui.js";
 
 const SECURITY = {
   "content-security-policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
@@ -89,16 +90,24 @@ async function detail(req, env, user, app) {
     env.DB.prepare("SELECT * FROM checks WHERE app = ? ORDER BY ts DESC LIMIT 12").bind(app.id).all().then((r) => r.results),
     env.DB.prepare("SELECT * FROM incidents WHERE app = ? ORDER BY started_at DESC LIMIT 20").bind(app.id).all().then((r) => r.results),
   ]);
-  let tiles = null, panel = null, panelError = null;
+  let tiles = null, panel = null, panelError = null, tokens = null;
+  const tp = tokensFor(env, app);
   if (ad) {
     try {
-      [tiles, panel] = await Promise.all([ad.stats(env, app), ad.panel(env, app, params)]);
+      [tiles, panel, tokens] = await Promise.all([
+        ad.stats(env, app),
+        ad.panel(env, app, params),
+        tp && Promise.all([tp.list(env, app), tp.fields ? tp.fields(env, app) : []])
+          .then(([rows, fields]) => ({ rows, fields, about: tp.about, ownerLabel: tp.ownerLabel, hasOwner: rows.some((r) => r.owner) }))
+          // e.g. the app's token migration isn't applied yet: show that, keep the rest of the page
+          .catch((e) => (console.error("tokens", app.id, e), { rows: [], fields: [], about: tp.about, error: String(e?.message || e) })),
+      ]);
     } catch (e) {
       console.error("panel", app.id, e);
       panelError = String(e?.message || e);
     }
   }
-  return html(appPage(env, { user, app, state, up: { d1, d7, d30 }, strip7d, checks, incidents, tiles, panel, panelError, params, tz: tz(env) }));
+  return html(appPage(env, { user, app, state, up: { d1, d7, d30 }, strip7d, checks, incidents, tiles, panel, panelError, tokens, params, tz: tz(env) }));
 }
 
 async function statusJson(env) {
@@ -149,7 +158,7 @@ async function route(req, env, ctx) {
     return back(`${url.origin}/`, "ok", "All services were just checked again.");
   }
 
-  const am = /^\/apps\/([a-z0-9-]{1,32})(?:\/(check|actions\/([a-z0-9-]{1,40})))?$/.exec(path);
+  const am = /^\/apps\/([a-z0-9-]{1,32})(?:\/(check|tokens|tokens\/revoke|actions\/([a-z0-9-]{1,40})))?$/.exec(path);
   if (am) {
     const app = findApp(env, am[1]);
     if (!app) return html(errorPage(env, 404, "field does not know this service"), 404);
@@ -159,6 +168,35 @@ async function route(req, env, ctx) {
       if (app.status === "planned") return back(here, "err", "Planned services are not checked yet.");
       const r = await record(env, app, await probe(env, app));
       return back(here, r.ok ? "ok" : "err", r.ok ? `${app.name} answered in ${r.ms} ms.` : `${app.name} is not answering: ${r.error}`);
+    }
+    if (m === "POST" && (am[2] === "tokens" || am[2] === "tokens/revoke")) {
+      const tp = tokensFor(env, app);
+      if (!tp) return html(errorPage(env, 404, `${app.name} has no API tokens`), 404);
+      const form = await req.formData();
+      if (am[2] === "tokens/revoke") {
+        const id = String(form.get("id") || "");
+        const entry = await auditStart(env, user, app.id, "revoke-token", id);
+        try {
+          const n = await tp.revoke(env, id);
+          await auditFinish(env, entry, null, n ? "revoked" : "was already revoked");
+          return back(here, "ok", n ? "Token revoked. It stops working right away." : "That token was already revoked.");
+        } catch (e) {
+          await auditFinish(env, entry, null, `error: ${e?.message || e}`);
+          return back(here, "err", String(e?.message || e));
+        }
+      }
+      let input;
+      try { input = readTokenForm(form); } catch (e) { return back(here, "err", e.message); }
+      const entry = await auditStart(env, user, app.id, "create-token", input.label);
+      try {
+        const created = await tp.create(env, { ...input, form, user });
+        // Never log the token itself: label, prefix and expiry are enough to recognise it.
+        await auditFinish(env, entry, `${input.label} (${created.prefix}…)`, input.expiresAt ? `expires ${new Date(input.expiresAt * 1000).toISOString().slice(0, 10)}` : "no expiry");
+        return html(tokenCreatedPage(env, { user, app, label: input.label, created, expiresAt: input.expiresAt, tz: tz(env) }));
+      } catch (e) {
+        await auditFinish(env, entry, null, `error: ${e?.message || e}`);
+        return back(here, "err", String(e?.message || e));
+      }
     }
     if (m === "POST" && am[3]) {
       const ad = adapterFor(env, app);
