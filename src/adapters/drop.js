@@ -26,6 +26,7 @@ export default {
       { label: "new in 24 h", value: s.today || 0 },
       { label: "flagged nsfw", value: s.nsfw || 0, warn: (s.nsfw || 0) > 0 },
       { label: "expire in 24 h", value: s.expiring || 0 },
+      ...(await waitingRequests(env)),
     ];
   },
 
@@ -42,6 +43,7 @@ export default {
          FROM items ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY created_at DESC LIMIT 60`,
     ).bind(...binds).all();
     const base = (app.url || "").replace(/\/$/, "");
+    const requests = await requestTable(env);
     return {
       filters: [
         { name: "q", type: "search", placeholder: "id, file name or alt text" },
@@ -63,7 +65,7 @@ export default {
         ],
         rows: results,
         rowActions: [{ action: "delete", label: "delete", confirm: "Delete this item for good?", danger: true }],
-      }],
+      }, ...(requests ? [requests] : [])],
     };
   },
 
@@ -79,6 +81,9 @@ export default {
       if (!res.ok) throw new Error(`drop answered with HTTP ${res.status}`);
       return { target: id, message: `deleted ${id}` };
     },
+    "approve-request": (env, app, form) => decide(env, form, "approved", 90),
+    "approve-request-year": (env, app, form) => decide(env, form, "approved", 365),
+    "reject-request": (env, app, form) => decide(env, form, "rejected"),
   },
 
   // Named API tokens in drop's api_tokens table (drop migration 0004). drop refuses them once
@@ -111,3 +116,56 @@ export default {
     },
   },
 };
+
+// Token requests from drop's public form (drop migration 0005). field only decides; drop generates
+// the token when the requester collects it through their private link, so field never sees it.
+const DAY = 86400;
+
+async function hasRequests(env) {
+  const t = await db(env).prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'token_requests'").first();
+  return !!t;
+}
+
+async function waitingRequests(env) {
+  if (!(await hasRequests(env))) return [];
+  const r = await db(env).prepare("SELECT COUNT(*) AS n FROM token_requests WHERE status = 'pending'").first();
+  return [{ label: "token requests", value: r.n || 0, hint: "waiting for a decision", warn: (r.n || 0) > 0 }];
+}
+
+async function requestTable(env) {
+  if (!(await hasRequests(env))) return null;
+  const { results } = await db(env).prepare(
+    `SELECT id, name, reason, status, created_at, decided_at, token_expires_at FROM token_requests
+      ORDER BY status = 'pending' DESC, created_at DESC LIMIT 50`,
+  ).all();
+  return {
+    title: "token requests",
+    note: "People who asked for an upload token on drop. Approving lets them collect a token once through their private link, within 14 days. You can revoke it under API tokens like any other.",
+    empty: "No requests.",
+    columns: [
+      { key: "name", label: "name" },
+      { key: "reason", label: "wants to upload" },
+      { key: "status", label: "status", type: "tag" },
+      { key: "created_at", label: "asked", type: "time" },
+      { key: "token_expires_at", label: "token expires", type: "time", none: "" },
+    ],
+    rows: results,
+    rowActions: [
+      { action: "approve-request", label: "approve, 90 days", when: (r) => r.status === "pending" },
+      { action: "approve-request-year", label: "approve, 1 year", when: (r) => r.status === "pending" },
+      { action: "reject-request", label: "reject", confirm: "Reject this request?", danger: true, when: (r) => r.status === "pending" },
+    ],
+  };
+}
+
+async function decide(env, form, status, days) {
+  const id = String(form.get("id") || "");
+  if (!/^[A-Za-z0-9]{6,32}$/.test(id)) throw new Error("invalid request id");
+  const now = Math.floor(Date.now() / 1000);
+  const r = await db(env).prepare(
+    `UPDATE token_requests SET status = ?, decided_at = ?, label = 'request: ' || name, token_expires_at = ?
+      WHERE id = ? AND status = 'pending'`,
+  ).bind(status, now, days ? now + days * DAY : null, id).run();
+  if (!(r.meta?.changes ?? 0)) throw new Error("request was already decided or no longer exists");
+  return { target: id, message: status === "approved" ? `approved request ${id}, token valid for ${days} days once collected` : `rejected request ${id}` };
+}

@@ -12,13 +12,14 @@ field runs as a single Cloudflare Worker behind Cloudflare Access. Every five mi
 
   | App | Numbers | Actions |
   | --- | --- | --- |
-  | [drop](https://github.com/shiftbloom-studio/drop) (uploads, pastes, links) | items, storage, views, NSFW flags, expiring soon | search, filter, delete (through drop's own delete route) |
+  | [drop](https://github.com/shiftbloom-studio/drop) (uploads, pastes, links) | items, storage, views, NSFW flags, expiring soon, token requests waiting | search, filter, delete (through drop's own delete route), approve or reject token requests |
   | convert (file conversion) | jobs, running, failed, output volume, daily quota | delete a job and its files, reset a daily quota counter |
   | [grow](https://github.com/shiftbloom-studio/grow) (OBS to-do overlays) | channels, active, Twitch-linked, open sessions | sign a channel out, delete a channel |
   | [roots](https://github.com/shiftbloom-studio/roots) (knowledge base) | documents, chunks, sources, last indexed | re-sync one source or all of them |
   | [rhizome](https://github.com/shiftbloom-studio/rhizome) (memory for AI agents) | people, agent clients, active keys, last key use | add an agent client together with its first key |
 
 - **API tokens** for the apps that have an API (drop and rhizome): create a token with a label and an expiry date, see when it was last used, revoke it. The token is shown once, right after it's created, in the response itself (never in a URL or the audit log). The apps store and check only its SHA-256 hash and refuse it once it has expired or was revoked. See [API tokens](#api-tokens).
+- **Token requests** from drop's public form: approve for 90 days or a year, or reject. field only records the decision; drop generates the token when the requester collects it through their private link, so field never sees it.
 - **Protocol** of every admin action, with who did it and when.
 - **Alerts** to a Discord or Slack webhook when something goes down and when it comes back.
 - **Imprint and privacy policy** in English and German (`/imprint`, `/impressum`, `/privacy`, `/datenschutz`), filled from the `OPERATOR` config. They are the only pages reachable without signing in; give them a bypass rule in your Access application.

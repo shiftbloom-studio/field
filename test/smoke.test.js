@@ -46,6 +46,23 @@ test("admin actions", async () => {
   let r = await post("/apps/drop/actions/delete", { id: "AbC12" });
   assert.match(r.headers.get("location"), /ok=/);
   assert.deepEqual(deleted, ["/d/AbC12/tok123"]);
+  // token requests: listed with escaping, approved once, rejected, never decided twice
+  const dropPage = await (await get("/apps/drop")).text();
+  assert.match(dropPage, /token requests/);
+  assert.match(dropPage, /Ada &lt;b&gt;L&lt;\/b&gt;/);
+  r = await post("/apps/drop/actions/approve-request", { id: "req000000001" });
+  assert.match(r.headers.get("location"), /ok=/);
+  const ok = await env.DROP_DB.prepare("SELECT status, label, token_expires_at, decided_at FROM token_requests WHERE id = 'req000000001'").first();
+  assert.equal(ok.status, "approved");
+  assert.equal(ok.label, "request: Ada <b>L</b>");
+  assert.ok(Math.abs(ok.token_expires_at - ok.decided_at - 90 * 86400) < 5);
+  r = await post("/apps/drop/actions/approve-request-year", { id: "req000000001" });
+  assert.match(r.headers.get("location"), /err=/);
+  r = await post("/apps/drop/actions/reject-request", { id: "req000000002" });
+  assert.match(r.headers.get("location"), /ok=/);
+  assert.equal((await env.DROP_DB.prepare("SELECT status FROM token_requests WHERE id = 'req000000002'").first()).status, "rejected");
+  r = await post("/apps/drop/actions/reject-request", { id: "../etc" });
+  assert.match(r.headers.get("location"), /err=/);
   r = await post("/apps/convert/actions/delete-job", { id: "11111111-2222-3333-4444-555555555555" });
   assert.match(r.headers.get("location"), /ok=/);
   r = await post("/apps/convert/actions/reset-usage", { id: `${new Date().toISOString().slice(0, 10)}|ip:abc` });
@@ -59,7 +76,7 @@ test("admin actions", async () => {
   r = await post("/apps/roots/actions/sync-all", { id: "*" });
   assert.match(r.headers.get("location"), /ok=/);
   const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM audit").first();
-  assert.equal(n.n, 7);
+  assert.equal(n.n, 11);
 });
 
 test("legal pages are public and bilingual", async () => {
@@ -149,4 +166,19 @@ test("API tokens: create shows the secret once, stores a hash, revoke works", as
 test("token forms from other origins are refused", async () => {
   const r = await mf.dispatchFetch("http://localhost/apps/drop/tokens", { method: "POST", redirect: "manual", headers: { origin: "https://evil.test", "content-type": "application/x-www-form-urlencoded" }, body: "label=x&expires=30" });
   assert.equal(r.status, 403);
+});
+
+test("form posts with Origin: null are judged by Sec-Fetch-Site, never a 500", async () => {
+  const send = (headers) => mf.dispatchFetch("http://localhost/check", { method: "POST", redirect: "manual", headers });
+  assert.equal((await send({ origin: "null", "sec-fetch-site": "same-origin" })).status, 303);
+  assert.equal((await send({ origin: "null" })).status, 403);
+  assert.equal((await send({ origin: "not a url" })).status, 403);
+});
+
+test("overview cards show the app URL and link to its API tokens", async () => {
+  const home = await (await get("/")).text();
+  assert.match(home, /class="url mono" href="https:\/\/drop\.test"/);
+  assert.match(home, /href="\/apps\/drop#tokens">API tokens</);
+  assert.doesNotMatch(home, /href="\/apps\/convert#tokens"/);
+  assert.match(await (await get("/apps/drop")).text(), /<section id="tokens">/);
 });

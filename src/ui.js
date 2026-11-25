@@ -84,6 +84,7 @@ const homeCss = `
 .card header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .card h3 a{color:var(--ink);background:none}.card h3 a:hover{color:var(--root)}
 .card .blurb{color:var(--ink60);font-size:14px;margin-top:4px}
+.card .url{display:inline-block;margin-top:4px;font-size:12px;color:var(--ink40);background:none}.card .url:hover{color:var(--root)}
 .card .meta{display:grid;grid-template-columns:repeat(4,minmax(0,auto));justify-content:start;gap:16px 22px}
 .card .meta div{display:flex;flex-direction:column;gap:2px}
 .card .meta b{font:500 14px/1.2 var(--mono)}
@@ -113,7 +114,7 @@ function headline(list, states) {
   return ["All good<em>.</em>", `${live.length} services, all reachable. Checked every five minutes.`];
 }
 
-export function overviewPage(env, { user, list, states, up24, strips, stats, incidents, open, links, params, tz }) {
+export function overviewPage(env, { user, list, states, up24, strips, stats, incidents, open, links, params, tz, tokenApps = new Set() }) {
   const [h1, sub] = headline(list, states);
   const last = Math.max(0, ...Object.values(states).map((s) => s.last_ts || 0));
 
@@ -126,13 +127,13 @@ export function overviewPage(env, { user, list, states, up24, strips, stats, inc
       const h = health(st, a);
       const tiles = (stats[a.id] || []).slice(0, 2);
       return `<article class="card ${h.cls === "down" ? "down" : ""} unfold" style="animation-delay:${i * 40}ms">
-<header><div><h3><a href="/apps/${esc(a.id)}">${esc(a.name)}</a></h3><div class="blurb">${esc(a.blurb || "")}</div></div><span class="status"><span class="seed ${h.cls}"></span>${h.text}</span></header>
+<header><div><h3><a href="/apps/${esc(a.id)}">${esc(a.name)}</a></h3><div class="blurb">${esc(a.blurb || "")}</div>${a.url ? `<a class="url mono" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url.replace(/^https:\/\//, "").replace(/\/$/, ""))}</a>` : ""}</div><span class="status"><span class="seed ${h.cls}"></span>${h.text}</span></header>
 ${strip(strips[a.id] || Array.from({ length: 48 }, () => ({ up: null })), tz)}
 <div class="meta"><div><span class="label">24 h</span><b>${pct(up24[a.id])}</b></div><div><span class="label">response</span><b>${st?.ms != null ? `${st.ms} ms` : "–"}</b></div>${tiles
         .map((t) => `<div><span class="label">${esc(t.label)}</span><b>${t.type === "size" ? fmtSize(t.value) : t.type === "time" ? esc(rel(t.value)) : fmtNum(t.value)}</b></div>`)
         .join("")}</div>
 ${st && !st.ok && st.error ? `<div class="err">${esc(st.error)}</div>` : ""}
-<footer><a class="btn sm ghost" href="/apps/${esc(a.id)}">${a.adapter ? "Manage" : "Details"}</a>${a.url ? `<a class="btn sm ghost" href="${esc(a.url)}" target="_blank" rel="noopener">Open ↗</a>` : ""}</footer>
+<footer><a class="btn sm ghost" href="/apps/${esc(a.id)}">${a.adapter ? "Manage" : "Details"}</a>${tokenApps.has(a.id) ? `<a class="btn sm ghost" href="/apps/${esc(a.id)}#tokens">API tokens</a>` : ""}${a.url ? `<a class="btn sm ghost" href="${esc(a.url)}" target="_blank" rel="noopener">Open ↗</a>` : ""}</footer>
 </article>`;
     })
     .join("");
@@ -298,7 +299,7 @@ const tokenCss = `
 `;
 
 function renderTokens(app, t, tz) {
-  if (t.error) return `<section><header><h2>API tokens</h2></header><div class="errbox">Could not load the tokens: ${esc(t.error)}</div></section>`;
+  if (t.error) return `<section id="tokens"><header><h2>API tokens</h2></header><div class="errbox">Could not load the tokens: ${esc(t.error)}</div></section>`;
   const fieldHtml = (f) => {
     const cls = f.when ? ` class="when-${esc(f.when.field)}-${esc(f.when.value)}"` : "";
     if (f.type === "select") return `<label${cls}>${esc(f.label)}<select name="${esc(f.name)}"${f.required ? " required" : ""}>${f.options.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("")}</select></label>`;
@@ -327,7 +328,7 @@ ${extra}<label>label<input name="label" required maxlength="80" placeholder="e.g
 <td class="act">${st === "revoked" ? "" : `<form method="post" action="/apps/${esc(app.id)}/tokens/revoke" onsubmit="return confirm(${esc(JSON.stringify(`Revoke “${r.label || r.prefix}”? Anything using it stops working right away.`))})"><input type="hidden" name="id" value="${esc(r.id)}"><button class="btn sm danger">Revoke</button></form>`}</td></tr>`;
       }).join("")
     : `<tr><td colspan="${t.hasOwner ? 8 : 7}" class="muted" style="padding:22px 10px">No tokens yet.</td></tr>`;
-  return `<section><header><h2>API tokens</h2><span class="muted" style="font-size:13px;max-width:52ch">${esc(t.about || "")}</span></header>
+  return `<section id="tokens"><header><h2>API tokens</h2><span class="muted" style="font-size:13px;max-width:52ch">${esc(t.about || "")}</span></header>
 <div class="panel">${form}<p class="muted" style="font-size:13px;margin:12px 0 0">The token is shown once, right after you create it. field keeps only a hash.</p></div>
 <div class="tablewrap" style="margin-top:16px"><table><thead><tr><th>label</th><th>token</th>${t.hasOwner ? `<th>${esc(t.ownerLabel || "owner")}</th>` : ""}<th>created</th><th>expires</th><th>last used</th><th>state</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
 }
