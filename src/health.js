@@ -71,8 +71,12 @@ export async function alert(env, text) {
 
 /** "Name <a@b>" → { name, email }; a bare address stays a string. */
 export function parseFrom(v) {
-  const m = /^\s*(.*?)\s*<([^<>\s]+@[^<>\s]+)>\s*$/.exec(String(v));
-  return m ? { name: m[1].replace(/^"|"$/g, ""), email: m[2] } : String(v).trim();
+  const t = String(v).trim();
+  const open = t.lastIndexOf("<");
+  if (open < 0 || !t.endsWith(">")) return t;
+  const email = t.slice(open + 1, -1).trim();
+  if (!email.includes("@") || /[\s<>]/.test(email)) return t;
+  return { name: t.slice(0, open).trim().replace(/^"|"$/g, ""), email };
 }
 
 /** Store a probe result, keep `state` current and open/close incidents. */
