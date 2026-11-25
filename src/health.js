@@ -8,7 +8,7 @@ export async function probe(env, app) {
   const started = Date.now();
   const base = app.url || `https://${app.id}.invalid`;
   const target = new URL(app.health || "/", base);
-  const req = new Request(target, { headers: { "user-agent": "field-health/1", accept: "application/json, text/plain, */*" }, redirect: "manual" });
+  const req = new Request(target, { headers: { "user-agent": "field-health/1", accept: "application/json, text/plain" }, redirect: "manual" });
   const binding = app.service && env[app.service];
   let status = null, error = null, detail = null;
 
