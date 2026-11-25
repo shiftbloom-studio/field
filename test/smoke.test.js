@@ -150,3 +150,18 @@ test("token forms from other origins are refused", async () => {
   const r = await mf.dispatchFetch("http://localhost/apps/drop/tokens", { method: "POST", redirect: "manual", headers: { origin: "https://evil.test", "content-type": "application/x-www-form-urlencoded" }, body: "label=x&expires=30" });
   assert.equal(r.status, 403);
 });
+
+test("form posts with Origin: null are judged by Sec-Fetch-Site, never a 500", async () => {
+  const send = (headers) => mf.dispatchFetch("http://localhost/check", { method: "POST", redirect: "manual", headers });
+  assert.equal((await send({ origin: "null", "sec-fetch-site": "same-origin" })).status, 303);
+  assert.equal((await send({ origin: "null" })).status, 403);
+  assert.equal((await send({ origin: "not a url" })).status, 403);
+});
+
+test("overview cards show the app URL and link to its API tokens", async () => {
+  const home = await (await get("/")).text();
+  assert.match(home, /class="url mono" href="https:\/\/drop\.test"/);
+  assert.match(home, /href="\/apps\/drop#tokens">api tokens</);
+  assert.doesNotMatch(home, /href="\/apps\/convert#tokens"/);
+  assert.match(await (await get("/apps/drop")).text(), /<section id="tokens">/);
+});
