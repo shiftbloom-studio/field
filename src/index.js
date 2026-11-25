@@ -28,10 +28,14 @@ const back = (url, key, msg) => {
 
 // Forms post back to field itself. Anything else is refused (CSRF guard on top of Access).
 function sameOrigin(req) {
-  const origin = req.headers.get("origin");
   const host = new URL(req.url).host;
-  if (origin) return new URL(origin).host === host;
   const site = req.headers.get("sec-fetch-site");
+  const origin = req.headers.get("origin");
+  // Browsers send "Origin: null" for form posts from a page with Referrer-Policy: no-referrer,
+  // which field sets. Then (and for anything unparsable) the fetch metadata header decides.
+  if (origin && origin !== "null") {
+    try { return new URL(origin).host === host; } catch { return false; }
+  }
   return site === "same-origin";
 }
 
@@ -73,8 +77,9 @@ async function overview(req, env, user) {
       }),
     ),
   );
+  const tokenApps = new Set(list.filter((a) => tokensFor(env, a)).map((a) => a.id));
   return html(overviewPage(env, {
-    user, list, states: st, up24, strips, stats, incidents,
+    user, list, states: st, up24, strips, stats, incidents, tokenApps,
     open: incidents.filter((i) => !i.resolved_at).length,
     links: links(env), params: new URL(req.url).searchParams, tz: tz(env),
   }));
