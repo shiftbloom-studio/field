@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { alert, parseFrom } from "../src/health.js";
+import { alert, parseFrom } from "../src/health.ts";
 
 test("alerts go to email and webhook when both are configured", async (t) => {
   const mails = [];

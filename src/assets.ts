@@ -2,12 +2,12 @@
 // Fontshare returns one family per CSS request, so each family is fetched on its own.
 
 const FONTSHARE = ["clash-display@400,500,600", "general-sans@400,500,600"].map((f) => `https://api.fontshare.com/v2/css?f[]=${f}&display=swap`);
-const MONO = (w) => `https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/files/jetbrains-mono-latin-${w}-normal.woff2`;
+const MONO = (w: number) => `https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/files/jetbrains-mono-latin-${w}-normal.woff2`;
 const ALLOWED = /^https:\/\/(cdn\.fontshare\.com\/wf\/[A-Za-z0-9_\-/]+\.(woff2|woff|ttf)|cdn\.jsdelivr\.net\/npm\/@fontsource\/jetbrains-mono@5\/files\/[a-z0-9-]+\.woff2)$/;
 const YEAR = "public, max-age=31536000, immutable";
-const proxied = (u) => `/assets/x?u=${encodeURIComponent(u)}`;
+const proxied = (u: string) => `/assets/x?u=${encodeURIComponent(u)}`;
 
-async function cached(req, ctx, build) {
+async function cached(req: Request, ctx: ExecutionContext, build: () => Promise<Response>): Promise<Response> {
   const key = new Request(new URL(req.url).toString(), { method: "GET" });
   const hit = await caches.default.match(key);
   if (hit) return hit;
@@ -16,7 +16,7 @@ async function cached(req, ctx, build) {
   return res;
 }
 
-export async function handleAsset(req, ctx, favicon) {
+export async function handleAsset(req: Request, ctx: ExecutionContext, favicon: string): Promise<Response | null> {
   const url = new URL(req.url);
   const p = url.pathname;
   if (p === "/favicon.svg" || p === "/favicon.ico")
@@ -30,7 +30,7 @@ export async function handleAsset(req, ctx, favicon) {
           if (r.ok) css += (await r.text()) + "\n";
         } catch {}
       }
-      css = css.replace(/url\((['"]?)(?:https?:)?\/\/(cdn\.fontshare\.com\/[^'")]+)\1\)/g, (_m, _q, path) => `url('${proxied("https://" + path)}')`);
+      css = css.replace(/url\((['"]?)(?:https?:)?\/\/(cdn\.fontshare\.com\/[^'")]+)\1\)/g, (_m, _q, path: string) => `url('${proxied("https://" + path)}')`);
       for (const w of [400, 500]) css += `@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:${w};font-display:swap;src:url('${proxied(MONO(w))}') format('woff2')}\n`;
       return new Response(css, { headers: { "content-type": "text/css; charset=utf-8", "cache-control": "public, max-age=86400" } });
     });

@@ -1,20 +1,20 @@
 // shiftbloom brand book v2: paper and ink, one loud flower.
 // Bloom Red for actions and seeds, gradients only inside the mark.
 
-import { bloomSvg, faviconSvg } from "./bloom.js";
+import { bloomSvg, faviconSvg } from "./bloom.ts";
 
-export const esc = (s) =>
-  String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+export const esc = (s: unknown): string =>
+  String(s ?? "").replace(/[&<>"']/g, (c) => (({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }) as Record<string, string>)[c]);
 
 // The bloom is the exact mark from shiftbloom.studio, see ./bloom.js.
 /** Gradient bloom as in the shiftbloom.studio header; `solid` for favicons and sizes below 32px. */
-export function bloom({ size = 30, solid = false, id = "sb-bloom-ring", anim = false, cls = "" } = {}) {
+export function bloom({ size = 30, solid = false, id = "sb-bloom-ring", anim = false, cls = "" }: { size?: number; solid?: boolean; id?: string; anim?: boolean; cls?: string } = {}): string {
   return bloomSvg({ size, variant: solid ? "solid" : "gradient", id, anim, cls: `bloom ${cls}`.trim() });
 }
 
 export { faviconSvg };
 
-export const SPARK = (size, color = "#FF2E52") =>
+export const SPARK = (size: number, color = "#FF2E52"): string =>
   `<svg class="sprinkle-svg" width="${size}" height="${size}" viewBox="-12 -12 24 24" aria-hidden="true"><path d="M0-12C1 -3 3 -1 12 0C3 1 1 3 0 12C-1 3-3 1-12 0C-3-1-1-3 0-12Z" fill="${color}"/></svg>`;
 
 export const css = `

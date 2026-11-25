@@ -8,9 +8,11 @@
 //   revoke(env, id)  → number of tokens revoked
 // The plain token exists only in the response that shows it once; apps store a SHA-256 hash.
 
+import type { TokenRow } from "./types.ts";
+
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
 
-export function randomToken(prefix, length = 40, alphabet = ALPHABET) {
+export function randomToken(prefix: string, length = 40, alphabet = ALPHABET): string {
   // Rejection sampling keeps every character equally likely.
   const max = 256 - (256 % alphabet.length);
   let out = "";
@@ -22,12 +24,12 @@ export function randomToken(prefix, length = 40, alphabet = ALPHABET) {
   return prefix + out;
 }
 
-export async function sha256Hex(text) {
+export async function sha256Hex(text: string): Promise<string> {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export const EXPIRY_CHOICES = [
+export const EXPIRY_CHOICES: [string, string][] = [
   ["30", "30 days"],
   ["90", "90 days"],
   ["180", "180 days"],
@@ -40,12 +42,12 @@ export const EXPIRY_CHOICES = [
  * Reads label and expiry from the form. Returns { label, expiresAt } with expiresAt in unix seconds
  * (null = never) or throws with a message meant for the person filling in the form.
  */
-export function readTokenForm(form, now = Date.now()) {
+export function readTokenForm(form: FormData, now = Date.now()): { label: string; expiresAt: number | null } {
   const label = String(form.get("label") || "").trim().replace(/\s+/g, " ");
   if (!label) throw new Error("Give the token a label, so you know later what it's for.");
   if (label.length > 80) throw new Error("Keep the label under 80 characters.");
   const choice = String(form.get("expires") || "90");
-  let expiresAt;
+  let expiresAt: number | null;
   if (choice === "never") expiresAt = null;
   else if (choice === "date") {
     const d = String(form.get("expires_date") || "");
@@ -60,7 +62,7 @@ export function readTokenForm(form, now = Date.now()) {
 }
 
 /** active | expired | revoked */
-export function tokenState(row, now = Math.floor(Date.now() / 1000)) {
+export function tokenState(row: Pick<TokenRow, "revoked_at" | "expires_at">, now = Math.floor(Date.now() / 1000)): "active" | "expired" | "revoked" {
   if (row.revoked_at) return "revoked";
   if (row.expires_at && row.expires_at <= now) return "expired";
   return "active";

@@ -1,18 +1,22 @@
 // grow: hosted OBS to-do overlays. Timestamps in grow's D1 are unix milliseconds.
 
-const db = (env) => env.GROW_DB;
+import type { Adapter, Env } from "../types.ts";
+
+type Counts = Record<string, number | null>;
+
+const db = (env: Env) => env.GROW_DB!;
 
 export default {
   binds: ["GROW_DB"],
 
   async stats(env) {
     const now = Date.now();
-    const s = await db(env).prepare(
+    const s = (await db(env).prepare(
       `SELECT COUNT(*) AS n, SUM(last_seen_at >= ?1 - 86400000) AS active,
               SUM(twitch_user_id IS NOT NULL) AS twitch, SUM(created_at >= ?1 - 7 * 86400000) AS week
          FROM channels`,
-    ).bind(now).first();
-    const ses = await db(env).prepare("SELECT COUNT(*) AS n FROM sessions WHERE expires_at > ?").bind(now).first();
+    ).bind(now).first<Counts>())!;
+    const ses = (await db(env).prepare("SELECT COUNT(*) AS n FROM sessions WHERE expires_at > ?").bind(now).first<Counts>())!;
     return [
       { label: "channels", value: s.n || 0, hint: `${s.week || 0} new this week` },
       { label: "active in 24 h", value: s.active || 0 },
@@ -58,7 +62,7 @@ export default {
     },
     async "delete-channel"(env, app, form) {
       const id = String(form.get("id") || "");
-      const ch = await db(env).prepare("SELECT id, name FROM channels WHERE id = ?").bind(id).first();
+      const ch = await db(env).prepare("SELECT id, name FROM channels WHERE id = ?").bind(id).first<{ id: string; name: string }>();
       if (!ch) throw new Error("channel no longer exists");
       await db(env).batch([
         db(env).prepare("DELETE FROM sessions WHERE channel_id = ?").bind(id),
@@ -67,4 +71,4 @@ export default {
       return { target: id, message: `deleted channel "${ch.name}"` };
     },
   },
-};
+} satisfies Adapter;

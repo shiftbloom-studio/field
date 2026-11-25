@@ -1,20 +1,21 @@
 // Imprint (§ 5 DDG) and privacy policy (Art. 13 GDPR), in English and German.
 // Every operator detail comes from the OPERATOR var in wrangler.jsonc, never from code.
 // Keep the two languages in step: when one changes, change the other.
-import { esc } from "./brand.js";
-import { layout } from "./ui.js";
-import { watchEnabled } from "./watch.js";
+import { esc } from "./brand.ts";
+import { layout } from "./ui.ts";
+import { watchEnabled } from "./watch.ts";
+import type { Env, Localized, Operator } from "./types.ts";
 
-const UPDATED = { en: "Last updated 25 November 2026", de: "Stand: 25. November 2026" };
+const UPDATED: Record<string, string> = { en: "Last updated 25 November 2026", de: "Stand: 25. November 2026" };
 
-function operator(env) {
-  let o = env.OPERATOR;
+function operator(env: Env): Operator | null {
+  let o: any = env.OPERATOR; // raw var: an object, or JSON text
   if (typeof o === "string") { try { o = JSON.parse(o); } catch { o = null; } }
   return o && o.name && o.email ? o : null;
 }
-const pick = (v, lang) => (v && typeof v === "object" ? v[lang] ?? v.en : v);
+const pick = (v: Localized | undefined, lang: string): string | undefined => (v && typeof v === "object" ? v[lang] ?? v.en : v);
 
-function address(o, lang) {
+function address(o: Operator, lang: string): string {
   const lines = [o.name, o.business, o.street, o.city, pick(o.country, lang) || (lang === "de" ? "Deutschland" : "Germany")].filter(Boolean);
   return `<address>${lines.map(esc).join("<br>")}</address>`;
 }
@@ -27,22 +28,22 @@ const css = `
 .legal-page .switch{margin-top:6px}
 `;
 
-function page(env, { lang, title, other, updated, body }) {
+function page(env: Env, { lang, title, other, updated, body }: { lang: string; title: string; other: string; updated?: string; body: string }): string {
   const switchLink = lang === "de" ? `<a href="${other}" hreflang="en" lang="en">English version</a>` : `<a href="${other}" hreflang="de" lang="de">Deutsche Fassung</a>`;
   const html = `<article class="legal-page"><span class="label">${lang === "de" ? "rechtliches" : "legal"}</span><h1>${esc(title)}<em>.</em></h1>
 <p class="muted switch">${updated ? `${esc(updated)} · ` : ""}${switchLink}</p>${body}</article>`;
   return layout(env, { title, body: html, extraCss: css, lang });
 }
 
-const missing = (lang) =>
+const missing = (lang: string): string =>
   lang === "de"
     ? `<p>Die Betreiberangaben sind noch nicht hinterlegt. Wer field betreibt, trägt sie in der Variable OPERATOR ein.</p>`
     : `<p>The operator details have not been set yet. Whoever runs field adds them in the OPERATOR variable.</p>`;
 
-export function imprint(env, lang) {
+export function imprint(env: Env, lang: string): string {
   const o = operator(env);
   const de = lang === "de";
-  let body;
+  let body: string;
   if (!o) body = missing(lang);
   else
     body = `<p>${de ? "Angaben gemäß § 5 DDG:" : "Information pursuant to § 5 DDG:"}</p>${address(o, lang)}
@@ -55,7 +56,7 @@ ${o.vatId ? `<p>${de ? "Umsatzsteuer-Identifikationsnummer gemäß § 27a UStG" 
   return page(env, { lang, title: de ? "Impressum" : "Imprint", other: de ? "/imprint" : "/impressum", body });
 }
 
-export function privacy(env, lang, host) {
+export function privacy(env: Env, lang: string, host: string): string {
   const o = operator(env);
   const de = lang === "de";
   const h = esc(host);

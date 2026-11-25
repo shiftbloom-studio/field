@@ -22,7 +22,7 @@ export async function boot(extra = {}) {
     ...extra,
     modules: true,
     modulesRules: [{ type: "ESModule", include: ["**/*.js"] }],
-    scriptPath: process.env.FIELD_SCRIPT || new URL("../src/index.js", import.meta.url).pathname,
+    scriptPath: process.env.FIELD_SCRIPT || new URL("../.build/index.js", import.meta.url).pathname,
     compatibilityDate: "2026-07-01",
     d1Databases: ["DB", "DROP_DB", "CONVERT_DB", "GROW_DB", "ROOTS_DB", "RHIZOME_DB", "LEAF_DB"],
     r2Buckets: ["CONVERT_FILES", "LEAF_PASTES"],

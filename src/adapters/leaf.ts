@@ -2,9 +2,12 @@
 // under p/<id> (raw) and h/<id> (highlighted); a delete removes the row and both objects.
 // API tokens use the same api_tokens schema as drop, with a "leaf_" prefix.
 
-import { randomToken, sha256Hex } from "../tokens.js";
+import { randomToken, sha256Hex } from "../tokens.ts";
+import type { Adapter, Env, Row, TokenRow } from "../types.ts";
 
-const db = (env) => env.LEAF_DB;
+type Counts = Record<string, number | null>;
+
+const db = (env: Env) => env.LEAF_DB!;
 const ID = /^[A-Za-z0-9]{6,24}$/;
 
 export default {
@@ -12,13 +15,13 @@ export default {
 
   async stats(env) {
     const now = Math.floor(Date.now() / 1000);
-    const s = await db(env).prepare(
+    const s = (await db(env).prepare(
       `SELECT COUNT(*) AS n, COALESCE(SUM(size), 0) AS bytes, COALESCE(SUM(views), 0) AS views,
               SUM(owner IS NULL) AS anon, SUM(burn = 1) AS burn,
               SUM(created_at >= ?1 - 86400) AS today,
               SUM(expires_at IS NOT NULL AND expires_at < ?1 + 86400) AS expiring
          FROM pastes`,
-    ).bind(now).first();
+    ).bind(now).first<Counts>())!;
     return [
       { label: "pastes", value: s.n || 0, hint: `${s.anon || 0} anonymous · ${s.burn || 0} burn after reading` },
       { label: "text stored", value: s.bytes, type: "size" },
@@ -29,8 +32,8 @@ export default {
   },
 
   async panel(env, app, params) {
-    const where = [];
-    const binds = [];
+    const where: string[] = [];
+    const binds: string[] = [];
     const q = (params.get("q") || "").trim();
     if (q) { where.push("(id LIKE ? OR title LIKE ? OR lang LIKE ?)"); binds.push(`%${q}%`, `%${q}%`, `%${q}%`); }
     if (params.get("anon") === "1") where.push("owner IS NULL");
@@ -50,13 +53,13 @@ export default {
         empty: "No pastes found.",
         // Burn-after-reading pastes are not linked: opening one would destroy it.
         columns: [
-          { key: "id", label: "id", type: "link", href: (r) => (r.burn ? null : `${base}/${r.id}`) },
-          { key: "title", label: "title", render: (r) => r.title || "" },
+          { key: "id", label: "id", type: "link", href: (r: Row) => (r.burn ? null : `${base}/${r.id}`) },
+          { key: "title", label: "title", render: (r: Row) => r.title || "" },
           { key: "lang", label: "language", type: "tag" },
           { key: "size", label: "size", type: "size" },
           { key: "lines", label: "lines", type: "num" },
           { key: "views", label: "views", type: "num" },
-          { key: "owner", label: "by", render: (r) => (r.owner == null ? "anonymous" : r.owner === "master" ? "master token" : "token") },
+          { key: "owner", label: "by", render: (r: Row) => (r.owner == null ? "anonymous" : r.owner === "master" ? "master token" : "token") },
           { key: "created_at", label: "created", type: "time" },
           { key: "expires_at", label: "expires", type: "time", none: "never" },
           { key: "burn", label: "", type: "flag", text: "burn" },
@@ -89,7 +92,7 @@ export default {
     async list(env) {
       const { results } = await db(env).prepare(
         "SELECT id, label, prefix, created_by AS owner, created_at, expires_at, last_used_at, revoked_at FROM api_tokens ORDER BY revoked_at IS NOT NULL, created_at DESC LIMIT 200",
-      ).all();
+      ).all<TokenRow>();
       return results;
     },
     async create(env, { label, expiresAt, user }) {
@@ -109,4 +112,4 @@ export default {
       return r.meta?.changes ?? 0;
     },
   },
-};
+} satisfies Adapter;

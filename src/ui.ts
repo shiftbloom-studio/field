@@ -1,37 +1,40 @@
-import { WATCHERS } from "./watch.js";
-import { EXPIRY_CHOICES, tokenState } from "./tokens.js";
-import { bloom, css, esc, SPARK } from "./brand.js";
+import { WATCHERS } from "./watch.ts";
+import { EXPIRY_CHOICES, tokenState } from "./tokens.ts";
+import { bloom, css, esc, SPARK } from "./brand.ts";
+import type { Action, App, AuditRow, Bucket, CheckRow, Column, CreatedToken, Env, Filter, IncidentRow, Link, Panel, Row, StateRow, Table, Tile, TokenField, TokensView, User } from "./types.ts";
+
+type Health = { cls: "idle" | "up" | "down" | "warn"; text: string };
 
 // ---------- formatting ----------
-export const fmtSize = (n) => {
+export const fmtSize = (n: unknown): string => {
   if (n == null) return "–";
   const u = ["B", "KB", "MB", "GB", "TB"];
   let i = 0;
   n = Number(n);
-  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
-  return `${n.toLocaleString("en-GB", { maximumFractionDigits: i ? 1 : 0 })} ${u[i]}`;
+  while ((n as number) >= 1024 && i < u.length - 1) { (n as number) /= 1024; i++; }
+  return `${(n as number).toLocaleString("en-GB", { maximumFractionDigits: i ? 1 : 0 })} ${u[i]}`;
 };
-const fmtNum = (n) => (n == null ? "–" : Number(n).toLocaleString("en-GB"));
-const pct = (r) => (r == null ? "–" : `${(r * 100).toLocaleString("en-GB", { maximumFractionDigits: r >= 0.9995 ? 0 : 2 })} %`);
+const fmtNum = (n: unknown): string => (n == null ? "–" : Number(n).toLocaleString("en-GB"));
+const pct = (r: number | null | undefined): string => (r == null ? "–" : `${(r * 100).toLocaleString("en-GB", { maximumFractionDigits: r >= 0.9995 ? 0 : 2 })} %`);
 
-export function rel(ts) {
+export function rel(ts: unknown): string {
   if (!ts) return "–";
-  const d = Math.round(Date.now() / 1000 - ts);
+  const d = Math.round(Date.now() / 1000 - (ts as number));
   const fut = d < 0;
   const a = Math.abs(d);
-  let s;
+  let s: string;
   if (a < 45) return fut ? "in a moment" : "just now";
   if (a < 3600) s = `${Math.round(a / 60)} min`;
   else if (a < 86400) s = `${Math.round(a / 3600)} h`;
   else s = `${Math.round(a / 86400)} ${Math.round(a / 86400) === 1 ? "day" : "days"}`;
   return fut ? `in ${s}` : `${s} ago`;
 }
-const abs = (ts, tz) => (ts ? new Intl.DateTimeFormat("en-GB", { timeZone: tz, dateStyle: "medium", timeStyle: "short" }).format(new Date(ts * 1000)) : "");
-const timeEl = (ts, tz, none = "–") => (ts ? `<time title="${esc(abs(ts, tz))}">${esc(rel(ts))}</time>` : `<span class="muted">${esc(none)}</span>`);
-const dur = (s) => (s < 3600 ? `${Math.max(1, Math.round(s / 60))} min` : s < 86400 ? `${(s / 3600).toLocaleString("en-GB", { maximumFractionDigits: 1 })} h` : `${Math.round(s / 86400)} days`);
+const abs = (ts: unknown, tz: string): string => (ts ? new Intl.DateTimeFormat("en-GB", { timeZone: tz, dateStyle: "medium", timeStyle: "short" }).format(new Date((ts as number) * 1000)) : "");
+const timeEl = (ts: unknown, tz: string, none = "–"): string => (ts ? `<time title="${esc(abs(ts, tz))}">${esc(rel(ts))}</time>` : `<span class="muted">${esc(none)}</span>`);
+const dur = (s: number): string => (s < 3600 ? `${Math.max(1, Math.round(s / 60))} min` : s < 86400 ? `${(s / 3600).toLocaleString("en-GB", { maximumFractionDigits: 1 })} h` : `${Math.round(s / 86400)} days`);
 
 /** up | warn | down | idle */
-export function health(st, app) {
+export function health(st: StateRow | null | undefined, app: App | null | undefined): Health {
   if (app?.status === "planned") return { cls: "idle", text: "planned" };
   if (!st) return { cls: "idle", text: "not checked yet" };
   if (st.ok) return { cls: "up", text: "up" };
@@ -39,7 +42,7 @@ export function health(st, app) {
   return { cls: "warn", text: "flaky" };
 }
 
-const strip = (buckets, tz) =>
+const strip = (buckets: Pick<Bucket, "up" | "from">[], tz: string): string =>
   `<div class="strip" aria-hidden="true">${buckets
     .map((b) => {
       const cls = b.up == null ? "none" : b.up >= 0.999 ? "" : b.up >= 0.5 ? "mid" : "bad";
@@ -49,7 +52,7 @@ const strip = (buckets, tz) =>
     .join("")}</div>`;
 
 // ---------- layout ----------
-export function layout(env, { title, user, active = "", body, extraCss = "", lang = "en" }) {
+export function layout(env: Env, { title, user, active = "", body, extraCss = "", lang = "en" }: { title: string; user?: User | null; active?: string; body: string; extraCss?: string; lang?: string }): string {
   const source = env.SOURCE_URL || "https://github.com/shiftbloom-studio/field";
   return `<!doctype html><html lang="${lang === "de" ? "de" : "en"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} · field</title><meta name="robots" content="noindex"><meta name="theme-color" content="#F6F1EE">
@@ -62,7 +65,7 @@ ${body}
 </div></body></html>`;
 }
 
-const flash = (params) => {
+const flash = (params: URLSearchParams): string => {
   const ok = params.get("ok"), err = params.get("err");
   if (ok) return `<div class="flash ok unfold"><span class="seed up"></span>${esc(ok)}</div>`;
   if (err) return `<div class="flash err unfold"><span class="seed down"></span>${esc(err)}</div>`;
@@ -102,7 +105,7 @@ section{margin-top:56px}section>header{display:flex;justify-content:space-betwee
 @media(max-width:480px){.card .meta{grid-template-columns:repeat(2,auto)}.grid{grid-template-columns:1fr}}
 `;
 
-function headline(list, states) {
+function headline(list: App[], states: Record<string, StateRow>): [string, string] {
   const live = list.filter((a) => a.status !== "planned");
   const down = live.filter((a) => health(states[a.id], a).cls === "down");
   const warn = live.filter((a) => health(states[a.id], a).cls === "warn");
@@ -114,7 +117,13 @@ function headline(list, states) {
   return ["All good<em>.</em>", `${live.length} services, all reachable. Checked every five minutes.`];
 }
 
-export function overviewPage(env, { user, list, states, up24, strips, stats, incidents, open, links, params, tz, tokenApps = new Set() }) {
+export function overviewPage(
+  env: Env,
+  { user, list, states, up24, strips, stats, incidents, open, links, params, tz, tokenApps = new Set() }: {
+    user: User; list: App[]; states: Record<string, StateRow>; up24: Record<string, number | null>; strips: Record<string, Bucket[]>;
+    stats: Record<string, Tile[]>; incidents: IncidentRow[]; open: number; links: Link[]; params: URLSearchParams; tz: string; tokenApps?: Set<string>;
+  },
+): string {
   const [h1, sub] = headline(list, states);
   const last = Math.max(0, ...Object.values(states).map((s) => s.last_ts || 0));
 
@@ -128,7 +137,7 @@ export function overviewPage(env, { user, list, states, up24, strips, stats, inc
       const tiles = (stats[a.id] || []).slice(0, 2);
       return `<article class="card ${h.cls === "down" ? "down" : ""} unfold" style="animation-delay:${i * 40}ms">
 <header><div><h3><a href="/apps/${esc(a.id)}">${esc(a.name)}</a></h3><div class="blurb">${esc(a.blurb || "")}</div>${a.url ? `<a class="url mono" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.url.replace(/^https:\/\//, "").replace(/\/$/, ""))}</a>` : ""}</div><span class="status"><span class="seed ${h.cls}"></span>${h.text}</span></header>
-${strip(strips[a.id] || Array.from({ length: 48 }, () => ({ up: null })), tz)}
+${strip(strips[a.id] || Array.from({ length: 48 }, () => ({ up: null }) as Bucket), tz)}
 <div class="meta"><div><span class="label">24 h</span><b>${pct(up24[a.id])}</b></div><div><span class="label">response</span><b>${st?.ms != null ? `${st.ms} ms` : "–"}</b></div>${tiles
         .map((t) => `<div><span class="label">${esc(t.label)}</span><b>${t.type === "size" ? fmtSize(t.value) : t.type === "time" ? esc(rel(t.value)) : fmtNum(t.value)}</b></div>`)
         .join("")}</div>
@@ -189,11 +198,11 @@ section{margin-top:44px}section>header{display:flex;justify-content:space-betwee
 pre.detail{font:12px/1.5 var(--mono);background:var(--ink);color:#fff;border-radius:12px;padding:12px 14px;overflow:auto;margin:14px 0 0}
 `;
 
-function cell(col, row, tz) {
+function cell(col: Column, row: Row, tz: string): string {
   const v = col.render ? col.render(row) : row[col.key];
   switch (col.type) {
     case "link": {
-      const href = col.href(row);
+      const href = col.href!(row);
       return href ? `<a class="mono" href="${esc(href)}" target="_blank" rel="noopener">${esc(v)}</a>` : `<span class="mono">${esc(v)}</span>`;
     }
     case "tag": return v ? `<span class="tag">${esc(v)}</span>` : "";
@@ -201,8 +210,8 @@ function cell(col, row, tz) {
     case "size": return fmtSize(v);
     case "num": return fmtNum(v);
     case "time": return timeEl(v, tz, col.none);
-    case "time_ms": return timeEl(v ? Math.floor(v / 1000) : null, tz, col.none);
-    case "iso": return timeEl(v ? Math.floor(Date.parse(v) / 1000) : null, tz, col.none);
+    case "time_ms": return timeEl(v ? Math.floor((v as number) / 1000) : null, tz, col.none);
+    case "iso": return timeEl(v ? Math.floor(Date.parse(v as string) / 1000) : null, tz, col.none);
     case "flag": return v ? `<span class="tag">${esc(col.text)}</span>` : "";
     case "status": {
       const s = String(v || "");
@@ -214,19 +223,19 @@ function cell(col, row, tz) {
   }
 }
 
-const cap = (t) => String(t).charAt(0).toUpperCase() + String(t).slice(1);
-const actionForm = (appId, a, id, cls = "") =>
+const cap = (t: unknown): string => String(t).charAt(0).toUpperCase() + String(t).slice(1);
+const actionForm = (appId: string, a: Action, id: unknown, cls = ""): string =>
   `<form method="post" action="/apps/${esc(appId)}/actions/${esc(a.action)}"${a.confirm ? ` onsubmit="return confirm(${esc(JSON.stringify(a.confirm))})"` : ""}><input type="hidden" name="id" value="${esc(id)}"><button class="btn sm ${a.danger ? "danger" : "ghost"} ${cls}">${esc(cap(a.label))}</button></form>`;
 
-function renderTable(app, t, tz) {
-  const key = t.key || ((r) => r.id);
+function renderTable(app: App, t: Table, tz: string): string {
+  const key = t.key || ((r: Row) => r.id);
   const acts = t.rowActions || [];
-  const head = t.columns.map((c) => `<th class="${["num", "size"].includes(c.type) ? "num" : ""}">${esc(c.label)}</th>`).join("") + (acts.length ? "<th></th>" : "");
+  const head = t.columns.map((c) => `<th class="${["num", "size"].includes(c.type!) ? "num" : ""}">${esc(c.label)}</th>`).join("") + (acts.length ? "<th></th>" : "");
   const rows = t.rows.length
     ? t.rows
         .map(
           (r) =>
-            `<tr>${t.columns.map((c) => `<td class="${["num", "size"].includes(c.type) ? "num" : ""}">${cell(c, r, tz)}</td>`).join("")}${
+            `<tr>${t.columns.map((c) => `<td class="${["num", "size"].includes(c.type!) ? "num" : ""}">${cell(c, r, tz)}</td>`).join("")}${
               acts.length ? `<td class="act">${acts.filter((a) => !a.when || a.when(r)).map((a) => actionForm(app.id, a, key(r))).join(" ")}</td>` : ""
             }</tr>`,
         )
@@ -235,7 +244,7 @@ function renderTable(app, t, tz) {
   return `<section><header><h3>${esc(t.title)}</h3>${t.note ? `<span class="muted" style="font-size:13px;max-width:52ch">${esc(t.note)}</span>` : `<span class="label">${t.rows.length} rows</span>`}</header><div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div></section>`;
 }
 
-function renderFilters(filters, params) {
+function renderFilters(filters: Filter[] | undefined, params: URLSearchParams): string {
   if (!filters?.length) return "";
   const f = filters
     .map((x) => {
@@ -249,9 +258,16 @@ function renderFilters(filters, params) {
   return `<form class="filters" method="get">${f}<button class="btn sm ghost">Filter</button></form>`;
 }
 
-export function appPage(env, { user, app, state, up, strip7d, checks, incidents, tiles, panel, panelError, tokens, params, tz }) {
+export function appPage(
+  env: Env,
+  { user, app, state, up, strip7d, checks, incidents, tiles, panel, panelError, tokens, params, tz }: {
+    user: User; app: App; state: StateRow | null; up: Record<"d1" | "d7" | "d30", Record<string, number | null>>; strip7d: Bucket[];
+    checks: CheckRow[]; incidents: IncidentRow[]; tiles: Tile[] | null; panel: Panel | null; panelError: string | null;
+    tokens: TokensView | null | undefined; params: URLSearchParams; tz: string;
+  },
+): string {
   const h = health(state, app);
-  const detail = state?.detail ? (() => { try { return JSON.stringify(JSON.parse(state.detail), null, 2); } catch { return state.detail; } })() : "";
+  const detail = state?.detail ? (() => { try { return JSON.stringify(JSON.parse(state.detail!), null, 2); } catch { return state.detail; } })() : "";
   const body = `${flash(params)}
 <div class="head"><div><span class="label"><a href="/" style="color:inherit">overview</a> / ${esc(app.id)}</span><h1 style="margin-top:10px">${esc(app.name)}<em>.</em></h1><p>${esc(app.blurb || "")}</p></div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="status"><span class="seed ${h.cls}"></span>${h.text}${state?.since ? ` · for ${esc(dur(Date.now() / 1000 - state.since))}` : ""}</span>
@@ -301,11 +317,11 @@ const tokenCss = `
 .secret code{font:500 15px/1.4 var(--mono);background:#FBF8F6;box-shadow:inset 0 0 0 1.5px var(--ink);border-radius:12px;padding:12px 14px;word-break:break-all;user-select:all;flex:1;min-width:260px}
 `;
 
-function renderTokens(app, t, tz) {
+function renderTokens(app: App, t: TokensView, tz: string): string {
   if (t.error) return `<section id="tokens"><header><h2>API tokens</h2></header><div class="errbox">Could not load the tokens: ${esc(t.error)}</div></section>`;
-  const fieldHtml = (f) => {
+  const fieldHtml = (f: TokenField): string => {
     const cls = f.when ? ` class="when-${esc(f.when.field)}-${esc(f.when.value)}"` : "";
-    if (f.type === "select") return `<label${cls}>${esc(f.label)}<select name="${esc(f.name)}"${f.required ? " required" : ""}>${f.options.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("")}</select></label>`;
+    if (f.type === "select") return `<label${cls}>${esc(f.label)}<select name="${esc(f.name)}"${f.required ? " required" : ""}>${f.options!.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("")}</select></label>`;
     if (f.type === "text") {
       const list = f.suggest?.length ? `<datalist id="dl-${esc(f.name)}">${f.suggest.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>` : "";
       return `<label${cls}>${esc(f.label)}<input name="${esc(f.name)}" maxlength="48" autocomplete="off" placeholder="${esc(f.placeholder || "")}"${list ? ` list="dl-${esc(f.name)}"` : ""}>${list}</label>`;
@@ -314,7 +330,7 @@ function renderTokens(app, t, tz) {
   };
   const extra = (t.fields || []).map(fieldHtml).join("");
   // Fields that only matter for one choice of another field ("new agent…") appear when it's picked.
-  const whenCss = [...new Set((t.fields || []).filter((f) => f.when).map((f) => `${f.when.field}|${f.when.value}`))]
+  const whenCss = [...new Set((t.fields || []).filter((f) => f.when).map((f) => `${f.when!.field}|${f.when!.value}`))]
     .map((k) => { const [fl, v] = k.split("|"); return `.tokform .when-${fl}-${v}{display:none}.tokform:has(select[name=${fl}] option[value=${v}]:checked) .when-${fl}-${v}{display:flex}`; })
     .join("");
   const tomorrow = new Date(Date.now() + 86400e3).toISOString().slice(0, 10);
@@ -337,7 +353,10 @@ ${extra}<label>label<input name="label" required maxlength="80" placeholder="e.g
 }
 
 /** Shown once, straight in the POST response, never via a redirect or a URL. */
-export function tokenCreatedPage(env, { user, app, label, created, expiresAt, tz }) {
+export function tokenCreatedPage(
+  env: Env,
+  { user, app, label, created, expiresAt, tz }: { user: User; app: App; label: string; created: CreatedToken; expiresAt: number | null; tz: string },
+): string {
   const body = `<div class="head"><div><span class="label"><a href="/" style="color:inherit">overview</a> / <a href="/apps/${esc(app.id)}" style="color:inherit">${esc(app.id)}</a> / new token</span>
 <h1 style="margin-top:10px">Copy it now<em>.</em></h1><p>This is the only time field shows the token “${esc(label)}”${created.owner ? ` for ${esc(created.owner)}` : ""}. It ${expiresAt ? `expires ${esc(abs(expiresAt, tz))}` : "doesn't expire"}.</p></div></div>
 <div class="panel"><div class="secret"><code id="tok">${esc(created.secret)}</code><button class="btn" type="button" id="copy">Copy</button></div>
@@ -348,7 +367,7 @@ ${created.usage ? `<p class="muted" style="font-size:14px;margin:8px 0 0">${esc(
 }
 
 // ---------- audit ----------
-export function auditPage(env, { user, rows, list, tz }) {
+export function auditPage(env: Env, { user, rows, list, tz }: { user: User; rows: AuditRow[]; list: App[]; tz: string }): string {
   const body = `<div style="padding:clamp(28px,5vw,56px) 0 24px"><span class="label">audit log</span><h1 style="margin-top:10px">Who changed what<em>.</em></h1><p class="muted">Every admin action ends up here, with the person and the time. Entries are kept for a year.</p></div>
 <div class="tablewrap"><table><thead><tr><th>time</th><th>person</th><th>service</th><th>action</th><th>target</th><th>result</th></tr></thead><tbody>${
     rows.length
@@ -358,6 +377,6 @@ export function auditPage(env, { user, rows, list, tz }) {
   return layout(env, { title: "audit log", user, active: "audit", body });
 }
 
-export function errorPage(env, status, message) {
+export function errorPage(env: Env, status: number, message: string): string {
   return layout(env, { title: String(status), body: `<div style="padding:80px 0"><span class="label">${status}</span><h1 style="margin-top:10px">${esc(message)}<em>.</em></h1><p><a href="/">back to the overview</a></p></div>` });
 }

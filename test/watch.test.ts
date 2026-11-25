@@ -1,7 +1,7 @@
 // Account watchers with a fake Cloudflare API: AI usage over the limit, then Access changes.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { boot } from "./fixture.js";
+import { boot } from "./fixture.ts";
 
 let mf, env;
 const alerts = [];
