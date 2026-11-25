@@ -55,7 +55,7 @@ export function layout(env, { title, user, active = "", body, extraCss = "", lan
 <title>${esc(title)} · field</title><meta name="robots" content="noindex"><meta name="theme-color" content="#ffffff">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/fonts.css">
 <style>${css}${extraCss}</style></head><body><div class="wrap">
-<header class="top"><a class="brand" href="/" aria-label="field, shiftbloom studio">${bloom({ size: 28, solid: true })}<span class="word">field<i>.</i></span><span class="by">shiftbloom studio</span></a>
+<header class="top"><a class="brand" href="/" aria-label="field, shiftbloom studio">${bloom({ size: 30 })}<span class="word">field<i>.</i></span><span class="by">shiftbloom <span class="studio">studio</span><i>.</i></span></a>
 <nav><a href="/" class="${active === "home" ? "on" : ""}">overview</a><a href="/audit" class="${active === "audit" ? "on" : ""}">audit log</a>${user ? `<span class="who">${esc(user.email)}</span>` : ""}</nav></header>
 ${body}
 <footer class="foot"><span class="label">field · intranet of ${esc(env.ORG_NAME || "shiftbloom studio")}</span><span class="label legal"><a href="/privacy">privacy</a> · <a href="/datenschutz">datenschutz</a> · <a href="/imprint">imprint</a> · <a href="/impressum">impressum</a> · <a href="${esc(source)}">source</a> · agpl-3.0</span></footer>
@@ -74,7 +74,7 @@ const homeCss = `
 .hero{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;padding:clamp(34px,6vw,72px) 0 clamp(24px,4vw,40px);position:relative}
 .hero p{color:var(--ink60);font-size:17px;margin:14px 0 0;max-width:36em}
 .hero .flower .bloom{width:clamp(110px,16vw,180px);height:auto;animation:unfold .6s var(--ease) both,breathe 6s ease-in-out .6s infinite}
-.hero .flower .ring{transform-origin:0 0}.hero .flower .r0{animation:spin 240s linear infinite}
+.hero .flower .ring{transform-origin:100px 100px}.hero .flower .r0{animation:spin 240s linear infinite}
 @keyframes breathe{50%{transform:scale(1.02)}}@keyframes spin{to{transform:rotate(360deg)}}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
 .card{background:var(--warm);border-radius:20px;padding:20px 22px;display:flex;flex-direction:column;gap:14px;transition:transform .24s var(--ease)}
