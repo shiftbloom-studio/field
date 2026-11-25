@@ -1,4 +1,4 @@
-// field — Cloudflare Workers config.
+// field - Cloudflare Workers config.
 // Self-hosting: create the D1 database (see README), put its id below, adjust APPS to your
 // own services and point the service bindings at your Worker names. Bindings you don't
 // have can simply be removed: the matching admin screen hides itself.
