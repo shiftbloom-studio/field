@@ -1,6 +1,8 @@
 // drop: uploads, pastes and short links. Reads drop's D1 directly; deletes go through
 // drop's own /d/<id>/<token> route so R2 objects, thumbnails and KV links disappear together.
 
+import { randomToken, sha256Hex } from "../tokens.js";
+
 const db = (env) => env.DROP_DB;
 
 export default {
@@ -76,6 +78,36 @@ export default {
       const res = await svc.fetch(new Request(`${app.url || "https://drop.invalid"}/d/${it.id}/${it.delete_token}`, { method: "DELETE" }));
       if (!res.ok) throw new Error(`drop answered with HTTP ${res.status}`);
       return { target: id, message: `deleted ${id}` };
+    },
+  },
+
+  // Named API tokens in drop's api_tokens table (drop migration 0004). drop refuses them once
+  // expired or revoked; its API_TOKEN secret stays the owner's master token.
+  tokens: {
+    binds: ["DROP_DB"],
+    ownerLabel: "created by",
+    about: "For ShareX, scripts and other devices. Each token has its own label and expiry, so you can revoke one without touching the others.",
+    async list(env) {
+      const { results } = await db(env).prepare(
+        "SELECT id, label, prefix, created_by AS owner, created_at, expires_at, last_used_at, revoked_at FROM api_tokens ORDER BY revoked_at IS NOT NULL, created_at DESC LIMIT 200",
+      ).all();
+      return results;
+    },
+    async create(env, { label, expiresAt, user }) {
+      const secret = randomToken("drop_");
+      const id = randomToken("", 16, "0123456789abcdef");
+      await db(env).prepare(
+        "INSERT INTO api_tokens (id, label, prefix, hash, created_at, created_by, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ).bind(id, label, secret.slice(0, 12), await sha256Hex(secret), Math.floor(Date.now() / 1000), user?.email || null, expiresAt).run();
+      return {
+        id, secret, prefix: secret.slice(0, 12),
+        usage: "Send it as Authorization: Bearer <token> or X-API-Key. In drop's web UI, paste it into the token field and download the ShareX configs from there; they carry this token.",
+      };
+    },
+    async revoke(env, id) {
+      if (!/^[0-9a-f]{16}$/.test(id)) throw new Error("invalid token id");
+      const r = await db(env).prepare("UPDATE api_tokens SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL").bind(Math.floor(Date.now() / 1000), id).run();
+      return r.meta?.changes ?? 0;
     },
   },
 };
