@@ -18,7 +18,7 @@ export const SPARK = (size, color = "#FF2E52") =>
   `<svg class="sprinkle-svg" width="${size}" height="${size}" viewBox="-12 -12 24 24" aria-hidden="true"><path d="M0-12C1 -3 3 -1 12 0C3 1 1 3 0 12C-1 3-3 1-12 0C-3-1-1-3 0-12Z" fill="${color}"/></svg>`;
 
 export const css = `
-:root{--bloom:#FF2E52;--root:#C81040;--petal:#FF8FAB;--blush:#FFE9EF;--ink:#1A1216;--ink60:rgba(26,18,22,.6);--ink40:rgba(26,18,22,.45);--line:rgba(26,18,22,.12);--paper:#fff;--warm:#FAF6F4;
+:root{--bloom:#FF2E52;--root:#C81040;--petal:#FF8FAB;--blush:#FFE9EF;--ink:#1A1216;--ink60:rgba(26,18,22,.62);--ink40:rgba(26,18,22,.45);--line:rgba(26,18,22,.12);--paper:#F6F1EE;--warm:#EEE6E2;
 --ok:#1A1216;--display:"Clash Display",ui-sans-serif,system-ui,sans-serif;--sans:"General Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
 --ease:cubic-bezier(.22,1.1,.36,1);--settle:cubic-bezier(.4,0,.2,1)}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
@@ -52,7 +52,7 @@ h2{font-size:26px}h3{font-size:20px}
 .btn.sm{padding:9px 14px;font-size:13px}
 .btn.danger{background:transparent;color:var(--root);box-shadow:inset 0 0 0 1px rgba(200,16,64,.35)}
 .btn.danger:hover{background:var(--root);color:#fff}
-input,select{font:14px/1.4 var(--sans);color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:999px;padding:9px 14px;transition:border-color .24s var(--settle),box-shadow .24s var(--settle)}
+input,select{font:14px/1.4 var(--sans);color:var(--ink);background:#FBF8F6;border:1px solid var(--line);border-radius:999px;padding:9px 14px;transition:border-color .24s var(--settle),box-shadow .24s var(--settle)}
 input:focus,select:focus{outline:0;border-color:var(--bloom);box-shadow:0 0 0 3px var(--blush)}
 .panel{background:var(--warm);border-radius:20px;padding:clamp(16px,2.4vw,26px)}
 .seed{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ink);flex:none}
@@ -64,7 +64,7 @@ input:focus,select:focus{outline:0;border-color:var(--bloom);box-shadow:0 0 0 3p
 .strip i.none{background:var(--line);opacity:1}.strip i.bad{background:var(--bloom);opacity:1}.strip i.mid{background:var(--petal);opacity:1}
 .strip i:hover{transform:scaleY(1.15)}
 .tag{display:inline-block;font:500 10px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;background:var(--blush);color:var(--root);border-radius:999px;padding:5px 9px;white-space:nowrap}
-.tag.plain{background:#fff;color:var(--ink60);box-shadow:inset 0 0 0 1px var(--line)}
+.tag.plain{background:#FBF8F6;color:var(--ink60);box-shadow:inset 0 0 0 1px var(--line)}
 table{width:100%;border-collapse:collapse}
 th{font:500 10px/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink40);text-align:left;padding:10px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
 td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
@@ -72,7 +72,7 @@ th.num{text-align:right}td.num{text-align:right;font-family:var(--mono);font-siz
 td.act{text-align:right;white-space:nowrap}td.act form{display:inline}
 td .clip{display:inline-block;max-width:34ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
 tr:hover td{background:rgba(255,233,239,.35)}
-.tablewrap{overflow-x:auto;background:#fff;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);padding:4px 8px}
+.tablewrap{overflow-x:auto;background:#FBF8F6;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);padding:4px 8px}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
 .tile{background:var(--warm);border-radius:16px;padding:16px 18px}
 .tile b{display:block;font:600 28px/1.1 var(--display);letter-spacing:-.02em;margin-top:6px}
