@@ -41,6 +41,11 @@
     "TZ": "Europe/Berlin",
     "RETENTION_DAYS": "30",
     "SOURCE_URL": "https://github.com/shiftbloom-studio/field",
+    // Account watchers (optional, only run when the CF_API_TOKEN secret is set): Workers AI usage and Access changes.
+    "CF_ACCOUNT_ID": "<your-account-id>",
+    "AI_HOURLY_NEURONS": "2000000",
+    "AI_DAILY_USD": "7",
+    "ACCESS_WATCH_PRODUCTS": "access",
     // Shown on /imprint, /impressum, /privacy and /datenschutz. Required in the EU; fill in your own details.
     // "authority" is the data protection authority responsible for the operator's address.
     "OPERATOR": {
@@ -69,4 +74,5 @@
     ]
   }
   // Optional secret: ALERT_WEBHOOK (Discord or Slack incoming webhook) → `npx wrangler secret put ALERT_WEBHOOK`
+  // Optional secret: CF_API_TOKEN (read-only, see README) → `npx wrangler secret put CF_API_TOKEN`
 }
