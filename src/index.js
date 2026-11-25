@@ -33,9 +33,18 @@ function sameOrigin(req) {
   return site === "same-origin";
 }
 
-async function audit(env, user, appId, action, target, detail) {
-  await env.DB.prepare("INSERT INTO audit (ts, actor, app, action, target, detail) VALUES (?, ?, ?, ?, ?, ?)")
-    .bind(Math.floor(Date.now() / 1000), user.email, appId, action, target ?? null, detail ?? null)
+// The row is written before the action runs, so an action never happens without a trace.
+// If the action finishes, the row gets its result; if the Worker dies halfway, "pending" stays.
+async function auditStart(env, user, appId, action, target) {
+  const row = await env.DB.prepare("INSERT INTO audit (ts, actor, app, action, target, detail) VALUES (?, ?, ?, ?, ?, 'pending') RETURNING id")
+    .bind(Math.floor(Date.now() / 1000), user.email, appId, action, target || null)
+    .first();
+  return row.id;
+}
+
+async function auditFinish(env, id, target, detail) {
+  await env.DB.prepare("UPDATE audit SET target = COALESCE(?, target), detail = ? WHERE id = ?")
+    .bind(target ?? null, detail ?? null, id)
     .run();
 }
 
@@ -155,12 +164,13 @@ async function route(req, env, ctx) {
       const fn = ad?.actions?.[am[3]];
       if (!fn) return html(errorPage(env, 404, "No such action"), 404);
       const form = await req.formData();
+      const entry = await auditStart(env, user, app.id, am[3], String(form.get("id") || ""));
       try {
         const r = await fn(env, app, form, ctx);
-        await audit(env, user, app.id, am[3], r.target, r.message);
+        await auditFinish(env, entry, r.target, r.message);
         return back(here, "ok", r.message);
       } catch (e) {
-        await audit(env, user, app.id, am[3], String(form.get("id") || ""), `error: ${e?.message || e}`);
+        await auditFinish(env, entry, null, `error: ${e?.message || e}`);
         return back(here, "err", String(e?.message || e));
       }
     }

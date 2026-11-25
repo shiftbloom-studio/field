@@ -40,7 +40,7 @@ export async function verifyAccess(request, env) {
   if (!ok) return null;
 
   const now = Math.floor(Date.now() / 1000);
-  if (payload.exp && payload.exp < now) return null;
+  if (typeof payload.exp !== "number" || payload.exp < now) return null;
   if (payload.nbf && payload.nbf > now + 60) return null;
   if (payload.iss !== `https://${env.ACCESS_TEAM_DOMAIN}`) return null;
   const auds = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
