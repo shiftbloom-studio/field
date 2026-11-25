@@ -69,7 +69,6 @@
       // roots sits behind Access and answers 401 without a token: that still proves the Worker is up.
       { "id": "roots", "name": "roots", "url": "https://roots.example.com", "blurb": "Knowledge base over repos and docs", "service": "ROOTS", "health": "/", "expect": [401], "db": "ROOTS_DB", "adapter": "roots" },
       { "id": "petal", "name": "petal", "url": "https://chat.example.com", "blurb": "Twitch chat relay", "service": "PETAL", "health": "/health" },
-      { "id": "runners", "name": "runners", "blurb": "Self-hosted GitHub Actions Runner", "status": "planned" },
       { "id": "rhizome", "name": "rhizome", "url": "https://rhizome.example.com", "blurb": "Long-term memory for AI agents", "service": "RHIZOME", "health": "/v1/health", "db": "RHIZOME_DB", "adapter": "rhizome" }
     ],
     "LINKS": [
