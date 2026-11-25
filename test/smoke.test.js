@@ -178,7 +178,7 @@ test("form posts with Origin: null are judged by Sec-Fetch-Site, never a 500", a
 test("overview cards show the app URL and link to its API tokens", async () => {
   const home = await (await get("/")).text();
   assert.match(home, /class="url mono" href="https:\/\/drop\.test"/);
-  assert.match(home, /href="\/apps\/drop#tokens">api tokens</);
+  assert.match(home, /href="\/apps\/drop#tokens">API tokens</);
   assert.doesNotMatch(home, /href="\/apps\/convert#tokens"/);
   assert.match(await (await get("/apps/drop")).text(), /<section id="tokens">/);
 });

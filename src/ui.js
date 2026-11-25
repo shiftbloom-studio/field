@@ -133,7 +133,7 @@ ${strip(strips[a.id] || Array.from({ length: 48 }, () => ({ up: null })), tz)}
         .map((t) => `<div><span class="label">${esc(t.label)}</span><b>${t.type === "size" ? fmtSize(t.value) : t.type === "time" ? esc(rel(t.value)) : fmtNum(t.value)}</b></div>`)
         .join("")}</div>
 ${st && !st.ok && st.error ? `<div class="err">${esc(st.error)}</div>` : ""}
-<footer><a class="btn sm" href="/apps/${esc(a.id)}">${a.adapter ? "manage" : "details"}</a>${tokenApps.has(a.id) ? `<a class="btn sm ghost" href="/apps/${esc(a.id)}#tokens">api tokens</a>` : ""}${a.url ? `<a class="btn sm ghost" href="${esc(a.url)}" target="_blank" rel="noopener">open ↗</a>` : ""}</footer>
+<footer><a class="btn sm ghost" href="/apps/${esc(a.id)}">${a.adapter ? "Manage" : "Details"}</a>${tokenApps.has(a.id) ? `<a class="btn sm ghost" href="/apps/${esc(a.id)}#tokens">API tokens</a>` : ""}${a.url ? `<a class="btn sm ghost" href="${esc(a.url)}" target="_blank" rel="noopener">Open ↗</a>` : ""}</footer>
 </article>`;
     })
     .join("");
@@ -166,7 +166,7 @@ ${st && !st.ok && st.error ? `<div class="err">${esc(st.error)}</div>` : ""}
 
   const body = `${flash(params)}
 <div class="hero"><div><span class="label">${open ? `${open} open incident${open === 1 ? "" : "s"}` : "status"}</span><h1 style="margin-top:12px">${h1}</h1><p>${sub}${last ? ` Last check ${esc(rel(last))}.` : ""}</p>
-<form method="post" action="/check" style="margin-top:20px"><button class="btn ghost sm">check all now</button></form></div>
+<form method="post" action="/check" style="margin-top:20px"><button class="btn ghost sm">Check all now</button></form></div>
 <div class="flower">${bloom({ size: 180, anim: true, id: "hero" })}</div>
 <span class="sprinkle" style="right:2%;top:16%">${SPARK(14)}</span></div>
 <div class="grid">${cards}</div>
@@ -211,8 +211,9 @@ function cell(col, row, tz) {
   }
 }
 
+const cap = (t) => String(t).charAt(0).toUpperCase() + String(t).slice(1);
 const actionForm = (appId, a, id, cls = "") =>
-  `<form method="post" action="/apps/${esc(appId)}/actions/${esc(a.action)}"${a.confirm ? ` onsubmit="return confirm(${esc(JSON.stringify(a.confirm))})"` : ""}><input type="hidden" name="id" value="${esc(id)}"><button class="btn sm ${a.danger ? "danger" : "ghost"} ${cls}">${esc(a.label)}</button></form>`;
+  `<form method="post" action="/apps/${esc(appId)}/actions/${esc(a.action)}"${a.confirm ? ` onsubmit="return confirm(${esc(JSON.stringify(a.confirm))})"` : ""}><input type="hidden" name="id" value="${esc(id)}"><button class="btn sm ${a.danger ? "danger" : "ghost"} ${cls}">${esc(cap(a.label))}</button></form>`;
 
 function renderTable(app, t, tz) {
   const key = t.key || ((r) => r.id);
@@ -242,7 +243,7 @@ function renderFilters(filters, params) {
       return "";
     })
     .join("");
-  return `<form class="filters" method="get">${f}<button class="btn sm ghost">filter</button></form>`;
+  return `<form class="filters" method="get">${f}<button class="btn sm ghost">Filter</button></form>`;
 }
 
 export function appPage(env, { user, app, state, up, strip7d, checks, incidents, tiles, panel, panelError, tokens, params, tz }) {
@@ -251,8 +252,8 @@ export function appPage(env, { user, app, state, up, strip7d, checks, incidents,
   const body = `${flash(params)}
 <div class="head"><div><span class="label"><a href="/" style="color:inherit">overview</a> / ${esc(app.id)}</span><h1 style="margin-top:10px">${esc(app.name)}<em>.</em></h1><p>${esc(app.blurb || "")}</p></div>
 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="status"><span class="seed ${h.cls}"></span>${h.text}${state?.since ? ` · for ${esc(dur(Date.now() / 1000 - state.since))}` : ""}</span>
-${app.status !== "planned" ? `<form method="post" action="/apps/${esc(app.id)}/check"><button class="btn sm ghost">check now</button></form>` : ""}
-${app.url ? `<a class="btn sm" href="${esc(app.url)}" target="_blank" rel="noopener">open ↗</a>` : ""}</div></div>
+${app.status !== "planned" ? `<form method="post" action="/apps/${esc(app.id)}/check"><button class="btn sm ghost">Check now</button></form>` : ""}
+${app.url ? `<a class="btn sm" href="${esc(app.url)}" target="_blank" rel="noopener">Open ↗</a>` : ""}</div></div>
 
 ${app.status === "planned" ? `<div class="panel"><p style="margin:0">${esc(app.note || "This service is still being planned. Once it runs, give it a URL or a service binding in APPS and field starts checking it.")}</p></div>` : `
 <div class="tiles">
@@ -318,13 +319,13 @@ function renderTokens(app, t, tz) {
 ${extra}<label>label<input name="label" required maxlength="80" placeholder="e.g. laptop, ShareX at home, CI" autocomplete="off"></label>
 <label>expires<select name="expires">${EXPIRY_CHOICES.map(([v, l]) => `<option value="${v}"${v === "90" ? " selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
 <label class="date">expiry date<input type="date" name="expires_date" min="${tomorrow}"></label>
-<button class="btn sm">create token</button></form>`;
+<button class="btn sm">Create token</button></form>`;
   const rows = t.rows.length
     ? t.rows.map((r) => {
         const st = tokenState(r);
         return `<tr><td>${esc(r.label) || '<span class="muted">no label</span>'}</td><td class="mono">${esc(r.prefix)}…</td>${t.hasOwner ? `<td>${esc(r.owner || "")}</td>` : ""}<td>${timeEl(r.created_at, tz)}</td><td>${timeEl(r.expires_at, tz, "never")}</td><td>${timeEl(r.last_used_at, tz, "never")}</td>
 <td><span class="status"><span class="seed ${st === "active" ? "up" : st === "expired" ? "warn" : "down"}"></span>${st}</span></td>
-<td class="act">${st === "revoked" ? "" : `<form method="post" action="/apps/${esc(app.id)}/tokens/revoke" onsubmit="return confirm(${esc(JSON.stringify(`Revoke “${r.label || r.prefix}”? Anything using it stops working right away.`))})"><input type="hidden" name="id" value="${esc(r.id)}"><button class="btn sm danger">revoke</button></form>`}</td></tr>`;
+<td class="act">${st === "revoked" ? "" : `<form method="post" action="/apps/${esc(app.id)}/tokens/revoke" onsubmit="return confirm(${esc(JSON.stringify(`Revoke “${r.label || r.prefix}”? Anything using it stops working right away.`))})"><input type="hidden" name="id" value="${esc(r.id)}"><button class="btn sm danger">Revoke</button></form>`}</td></tr>`;
       }).join("")
     : `<tr><td colspan="${t.hasOwner ? 8 : 7}" class="muted" style="padding:22px 10px">No tokens yet.</td></tr>`;
   return `<section id="tokens"><header><h2>API tokens</h2><span class="muted" style="font-size:13px;max-width:52ch">${esc(t.about || "")}</span></header>
@@ -336,10 +337,10 @@ ${extra}<label>label<input name="label" required maxlength="80" placeholder="e.g
 export function tokenCreatedPage(env, { user, app, label, created, expiresAt, tz }) {
   const body = `<div class="head"><div><span class="label"><a href="/" style="color:inherit">overview</a> / <a href="/apps/${esc(app.id)}" style="color:inherit">${esc(app.id)}</a> / new token</span>
 <h1 style="margin-top:10px">Copy it now<em>.</em></h1><p>This is the only time field shows the token “${esc(label)}”${created.owner ? ` for ${esc(created.owner)}` : ""}. It ${expiresAt ? `expires ${esc(abs(expiresAt, tz))}` : "doesn't expire"}.</p></div></div>
-<div class="panel"><div class="secret"><code id="tok">${esc(created.secret)}</code><button class="btn" type="button" id="copy">copy</button></div>
+<div class="panel"><div class="secret"><code id="tok">${esc(created.secret)}</code><button class="btn" type="button" id="copy">Copy</button></div>
 ${created.usage ? `<p class="muted" style="font-size:14px;margin:8px 0 0">${esc(created.usage)}</p>` : ""}</div>
-<p style="margin-top:24px"><a class="btn ghost sm" href="/apps/${esc(app.id)}">done, back to ${esc(app.name)}</a></p>
-<script>document.getElementById('copy').onclick=async e=>{try{await navigator.clipboard.writeText(document.getElementById('tok').textContent);e.target.textContent='copied'}catch(x){getSelection().selectAllChildren(document.getElementById('tok'))}};history.replaceState(null,'','/apps/${esc(app.id)}')</script>`;
+<p style="margin-top:24px"><a class="btn ghost sm" href="/apps/${esc(app.id)}">Done, back to ${esc(app.name)}</a></p>
+<script>document.getElementById('copy').onclick=async e=>{try{await navigator.clipboard.writeText(document.getElementById('tok').textContent);e.target.textContent='Copied'}catch(x){getSelection().selectAllChildren(document.getElementById('tok'))}};history.replaceState(null,'','/apps/${esc(app.id)}')</script>`;
   return layout(env, { title: "new token", user, body, extraCss: appCss + tokenCss });
 }
 
