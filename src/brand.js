@@ -1,39 +1,18 @@
 // shiftbloom brand book v2: paper and ink, one loud flower.
 // Bloom Red for actions and seeds, gradients only inside the mark.
 
+import { bloomSvg, faviconSvg } from "./bloom.js";
+
 export const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-// rings: radius, petals, rotation offset, width factor, gradient stem -> tip
-const RINGS = [
-  [100, 10, 0, 0.3, "#D8163F", "#FF2E52"],
-  [74, 10, 18, 0.32, "#FF2E52", "#FF7E9E"],
-  [50, 8, 22.5, 0.36, "#FF7E9E", "#FFC2D3"],
-  [27, 6, 0, 0.44, "#FFB4CA", "#FFDCE7"],
-];
-const f = (n) => +n.toFixed(2);
-const petal = (r, wf) => {
-  const w = r * wf;
-  return `M0 0C${f(w)} ${f(-0.32 * r)} ${f(0.62 * w)} ${f(-0.74 * r)} 0 ${-r}C${f(-0.62 * w)} ${f(-0.74 * r)} ${f(-w)} ${f(-0.32 * r)} 0 0Z`;
-};
-
-/** Full-gradient bloom (>=32px) or the solid bloom for small sizes. */
-export function bloom({ size = 64, solid = size < 32, id = "b", anim = false, cls = "" } = {}) {
-  let defs = "", rings = "";
-  RINGS.forEach(([r, n, off, wf, c0, c1], i) => {
-    const gid = `${id}g${i}`;
-    if (!solid) defs += `<linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="${-r}"><stop offset="0" stop-color="${c0}"/><stop offset="1" stop-color="${c1}"/></linearGradient>`;
-    const d = petal(r, wf);
-    let ps = "";
-    for (let k = 0; k < n; k++) ps += `<path d="${d}" transform="rotate(${f(off + (360 / n) * k)})"/>`;
-    const fill = solid ? (i < 2 ? "#FF2E52" : "none") : `url(#${gid})`;
-    if (fill !== "none") rings += `<g fill="${fill}"${anim ? ` class="ring r${i}"` : ""}>${ps}</g>`;
-  });
-  const seed = `<circle r="7" fill="${solid ? "#C81040" : "#FF2E52"}"/>`;
-  return `<svg class="bloom ${cls}" width="${size}" height="${size}" viewBox="-104 -104 208 208" role="img" aria-label="shiftbloom bloom">${defs ? `<defs>${defs}</defs>` : ""}${rings}${seed}</svg>`;
+// The bloom is the exact mark from shiftbloom.studio, see ./bloom.js.
+/** Gradient bloom as in the shiftbloom.studio header; `solid` for favicons and sizes below 32px. */
+export function bloom({ size = 30, solid = false, id = "sb-bloom-ring", anim = false, cls = "" } = {}) {
+  return bloomSvg({ size, variant: solid ? "solid" : "gradient", id, anim, cls: `bloom ${cls}`.trim() });
 }
 
-export const faviconSvg = () => `<svg xmlns="http://www.w3.org/2000/svg"${bloom({ size: 32, solid: true }).slice(4)}`;
+export { faviconSvg };
 
 export const SPARK = (size, color = "#FF2E52") =>
   `<svg class="sprinkle-svg" width="${size}" height="${size}" viewBox="-12 -12 24 24" aria-hidden="true"><path d="M0-12C1 -3 3 -1 12 0C3 1 1 3 0 12C-1 3-3 1-12 0C-3-1-1-3 0-12Z" fill="${color}"/></svg>`;
@@ -52,10 +31,10 @@ a:hover{background-size:100% 1px}
 .mono{font-family:var(--mono);font-size:13px}
 .muted{color:var(--ink60)}
 .top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0;border-bottom:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:10px;color:var(--ink);background:none}
-.brand .word{font:600 22px/1 var(--display);letter-spacing:-.02em}
+.brand{display:flex;align-items:center;gap:12px;color:var(--ink);background:none}
+.brand .word{font:600 20px/1 var(--display);letter-spacing:-.02em}@media(min-width:640px){.brand .word{font-size:22.4px}}
 .brand .word i{font-style:normal;color:var(--bloom)}
-.brand .by{font:400 14px/1 var(--display);color:var(--ink60)}
+.brand .by{font:600 14px/1 var(--display);letter-spacing:-.02em;color:var(--ink)}.brand .by .studio{font-weight:400;color:var(--ink60)}.brand .by i{font-style:normal;color:var(--bloom)}
 @media(max-width:480px){.brand .by{display:none}}
 nav{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
 nav a{font:500 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink60);background:none;padding:6px 0;position:relative}

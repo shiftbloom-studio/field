@@ -1,7 +1,7 @@
 // Self-hosted font proxy: browsers only ever talk to field's own origin.
 // Fontshare returns one family per CSS request, so each family is fetched on its own.
 
-const FONTSHARE = ["clash-display@500,600", "general-sans@400,500,600"].map((f) => `https://api.fontshare.com/v2/css?f[]=${f}&display=swap`);
+const FONTSHARE = ["clash-display@400,500,600", "general-sans@400,500,600"].map((f) => `https://api.fontshare.com/v2/css?f[]=${f}&display=swap`);
 const MONO = (w) => `https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5/files/jetbrains-mono-latin-${w}-normal.woff2`;
 const ALLOWED = /^https:\/\/(cdn\.fontshare\.com\/wf\/[A-Za-z0-9_\-/]+\.(woff2|woff|ttf)|cdn\.jsdelivr\.net\/npm\/@fontsource\/jetbrains-mono@5\/files\/[a-z0-9-]+\.woff2)$/;
 const YEAR = "public, max-age=31536000, immutable";
