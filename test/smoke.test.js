@@ -18,7 +18,7 @@ test("cron records checks, opens an incident after two failures", async () => {
   const r1 = await post("/check");
   assert.equal(r1.status, 303);
   const st = (await env.DB.prepare("SELECT app, ok, fails FROM state ORDER BY app").all()).results;
-  assert.deepEqual(st.map((s) => [s.app, s.ok]), [["convert", 1], ["drop", 1], ["grow", 0], ["kb", 1], ["petal", 1]]);
+  assert.deepEqual(st.map((s) => [s.app, s.ok]), [["convert", 1], ["drop", 1], ["grow", 0], ["petal", 1], ["roots", 1]]);
   assert.equal(st.find((s) => s.app === "grow").fails, 2);
   const inc = await env.DB.prepare("SELECT * FROM incidents WHERE app = 'grow' AND resolved_at IS NULL").first();
   assert.ok(inc, "incident open");
@@ -29,7 +29,7 @@ test("pages render", async () => {
   assert.match(home, /grow is down/);
   assert.match(home, /coming soon/);
   assert.ok(!home.includes("<b>channel</b>"));
-  for (const id of ["drop", "convert", "grow", "kb", "petal", "runners"]) {
+  for (const id of ["drop", "convert", "grow", "roots", "petal", "runners"]) {
     const r = await get(`/apps/${id}`);
     const t = await r.text();
     assert.equal(r.status, 200, id);
@@ -54,9 +54,9 @@ test("admin actions", async () => {
   assert.equal(new URL(r.headers.get("location")).searchParams.get("ok"), "ended 1 sessions");
   r = await post("/apps/grow/actions/delete-channel", { id: "ch1" });
   assert.match(r.headers.get("location"), /ok=/);
-  r = await post("/apps/kb/actions/sync", { id: "github/petal" });
+  r = await post("/apps/roots/actions/sync", { id: "github/petal" });
   assert.match(r.headers.get("location"), /ok=/);
-  r = await post("/apps/kb/actions/sync-all", { id: "*" });
+  r = await post("/apps/roots/actions/sync-all", { id: "*" });
   assert.match(r.headers.get("location"), /ok=/);
   const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM audit").first();
   assert.equal(n.n, 7);

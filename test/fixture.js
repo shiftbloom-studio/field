@@ -9,7 +9,7 @@ export const APPS = [
   { id: "drop", name: "drop", url: "https://drop.test", service: "DROP", health: "/health", db: "DROP_DB", adapter: "drop" },
   { id: "convert", name: "convert", url: "https://convert.test", service: "CONVERT", health: "/api/health", db: "CONVERT_DB", adapter: "convert" },
   { id: "grow", name: "grow", url: "https://grow.test", service: "GROW", health: "/healthz", db: "GROW_DB", adapter: "grow" },
-  { id: "kb", name: "roots", url: "https://kb.test", service: "ROOTS", health: "/", expect: [401], db: "ROOTS_DB", adapter: "roots" },
+  { id: "roots", name: "roots", url: "https://roots.test", service: "ROOTS", health: "/", expect: [401], db: "ROOTS_DB", adapter: "roots" },
   { id: "petal", name: "petal", url: "https://chat.test", service: "PETAL", health: "/health" },
   { id: "runners", name: "runners", status: "planned" },
 ];

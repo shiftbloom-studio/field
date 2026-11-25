@@ -58,7 +58,7 @@
       { "id": "convert", "name": "convert", "url": "https://convert.example.com", "blurb": "Converts images, video and audio", "service": "CONVERT", "health": "/api/health", "db": "CONVERT_DB", "adapter": "convert" },
       { "id": "grow", "name": "grow", "url": "https://grow.example.com", "blurb": "To-do overlays for OBS", "service": "GROW", "health": "/healthz", "db": "GROW_DB", "adapter": "grow" },
       // roots sits behind Access and answers 401 without a token: that still proves the Worker is up.
-      { "id": "kb", "name": "roots", "url": "https://kb.example.com", "blurb": "Knowledge base over repos and docs", "service": "ROOTS", "health": "/", "expect": [401], "db": "ROOTS_DB", "adapter": "roots" },
+      { "id": "roots", "name": "roots", "url": "https://roots.example.com", "blurb": "Knowledge base over repos and docs", "service": "ROOTS", "health": "/", "expect": [401], "db": "ROOTS_DB", "adapter": "roots" },
       { "id": "petal", "name": "petal", "url": "https://chat.example.com", "blurb": "Twitch chat relay", "service": "PETAL", "health": "/health" },
       { "id": "runners", "name": "runners", "blurb": "Self-hosted GitHub Actions Runner", "status": "planned" },
       { "id": "memory", "name": "memory", "blurb": "Memory for agents", "status": "planned" }
