@@ -18,7 +18,7 @@ export const SPARK = (size, color = "#FF2E52") =>
   `<svg class="sprinkle-svg" width="${size}" height="${size}" viewBox="-12 -12 24 24" aria-hidden="true"><path d="M0-12C1 -3 3 -1 12 0C3 1 1 3 0 12C-1 3-3 1-12 0C-3-1-1-3 0-12Z" fill="${color}"/></svg>`;
 
 export const css = `
-:root{--bloom:#FF2E52;--root:#C81040;--petal:#FF8FAB;--blush:#FFE9EF;--ink:#1A1216;--ink60:rgba(26,18,22,.6);--ink40:rgba(26,18,22,.45);--line:rgba(26,18,22,.12);--paper:#F6F1EE;--warm:#EEE6E2;
+:root{--bloom:#FF2E52;--root:#C81040;--petal:#FF8FAB;--blush:#FFE9EF;--ink:#1A1216;--ink60:rgba(26,18,22,.62);--ink40:rgba(26,18,22,.45);--line:rgba(26,18,22,.12);--paper:#F6F1EE;--warm:#EEE6E2;
 --ok:#1A1216;--display:"Clash Display",ui-sans-serif,system-ui,sans-serif;--sans:"General Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
 --ease:cubic-bezier(.22,1.1,.36,1);--settle:cubic-bezier(.4,0,.2,1)}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
