@@ -41,6 +41,18 @@
     "TZ": "Europe/Berlin",
     "RETENTION_DAYS": "30",
     "SOURCE_URL": "https://github.com/shiftbloom-studio/field",
+    // Shown on /imprint, /impressum, /privacy and /datenschutz. Required in the EU; fill in your own details.
+    // "authority" is the data protection authority responsible for the operator's address.
+    "OPERATOR": {
+      "name": "<your name>",
+      "business": "<business name, optional>",
+      "street": "<street and number>",
+      "city": "<postcode and city>",
+      "country": { "en": "Germany", "de": "Deutschland" },
+      "email": "<contact email>",
+      "phone": "<phone number>",
+      "authority": { "en": "<supervisory authority, address>", "de": "<Aufsichtsbehörde, Anschrift>" }
+    },
     "APPS": [
       { "id": "drop", "name": "drop", "url": "https://drop.example.com", "blurb": "Files, pastes and short links", "service": "DROP", "health": "/health", "db": "DROP_DB", "adapter": "drop" },
       { "id": "convert", "name": "convert", "url": "https://convert.example.com", "blurb": "Converts images, video and audio", "service": "CONVERT", "health": "/api/health", "db": "CONVERT_DB", "adapter": "convert" },

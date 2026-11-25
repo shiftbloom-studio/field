@@ -25,7 +25,7 @@ export async function boot(extra = {}) {
     d1Databases: ["DB", "DROP_DB", "CONVERT_DB", "GROW_DB", "ROOTS_DB"],
     r2Buckets: ["CONVERT_FILES"],
     queueProducers: { ROOTS_QUEUE: "roots-index" },
-    bindings: { APPS, LINKS: [{ name: "GitHub", url: "https://github.com" }], DEV_BYPASS_ACCESS: "true", TZ: "Europe/Berlin" },
+    bindings: { APPS, LINKS: [{ name: "GitHub", url: "https://github.com" }], DEV_BYPASS_ACCESS: "true", TZ: "Europe/Berlin", OPERATOR: { name: "Test Operator", street: "Example Street 1", city: "12345 Example City", email: "operator@example.org", authority: { en: "Example Authority", de: "Beispielbehörde" } } },
     serviceBindings: {
       DROP: async (req) => {
         const u = new URL(req.url);

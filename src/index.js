@@ -6,6 +6,7 @@ import { apps, app as findApp, links, tz } from "./config.js";
 import { runAll, prune, probe, record, uptime, history, historyAll } from "./health.js";
 import { adapterFor } from "./adapters/index.js";
 import { handleAsset } from "./assets.js";
+import { imprint, privacy } from "./legal.js";
 import { faviconSvg } from "./brand.js";
 import { overviewPage, appPage, auditPage, errorPage, health } from "./ui.js";
 
@@ -111,6 +112,13 @@ async function route(req, env, ctx) {
   if (asset) return asset;
   if (path === "/health") return json({ ok: true });
   if (path === "/robots.txt") return new Response("User-agent: *\nDisallow: /\n");
+
+  // Legal pages are public: the Access application has a bypass rule for exactly these paths.
+  const legal = { "/privacy": ["privacy", "en"], "/datenschutz": ["privacy", "de"], "/imprint": ["imprint", "en"], "/impressum": ["imprint", "de"] }[path];
+  if (legal && (m === "GET" || m === "HEAD")) {
+    const [kind, lang] = legal;
+    return html(kind === "privacy" ? privacy(env, lang, url.host) : imprint(env, lang));
+  }
 
   let user = await verifyAccess(req, env).catch((e) => (console.error("access", e), null));
   // Local development only: `wrangler dev` with DEV_BYPASS_ACCESS=true in .dev.vars.

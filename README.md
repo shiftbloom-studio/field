@@ -19,6 +19,7 @@ field runs as a single Cloudflare Worker behind Cloudflare Access. Every five mi
 
 - **Protocol** of every admin action, with who did it and when.
 - **Alerts** to a Discord or Slack webhook when something goes down and when it comes back.
+- **Imprint and privacy policy** in English and German (`/imprint`, `/impressum`, `/privacy`, `/datenschutz`), filled from the `OPERATOR` config. They are the only pages reachable without signing in; give them a bypass rule in your Access application.
 - **`/api/status`** as JSON, for scripts and agents (send a Cloudflare Access service token).
 - Placeholders for services that don't exist yet, so the overview already shows what's coming.
 
@@ -41,6 +42,7 @@ Everything tenant-specific lives in `wrangler.jsonc`:
 | `TZ` | time zone for dates, default `Europe/Berlin` |
 | `RETENTION_DAYS` | how long check history is kept, default 30 |
 | `ORG_NAME`, `SOURCE_URL` | footer text and source link |
+| `OPERATOR` | your details for the imprint and privacy policy (see `wrangler.jsonc`) |
 | `ALERT_WEBHOOK` (secret) | optional Discord/Slack incoming webhook |
 
 An entry in `APPS`:
@@ -70,7 +72,7 @@ npm run db:migrate
 npx wrangler deploy
 ```
 
-Then, in Cloudflare Zero Trust, create a self-hosted Access application for field's hostname, copy its AUD tag into `ACCESS_AUD` and deploy again. Without a valid Access token field only answers `/health`.
+Then, in Cloudflare Zero Trust, create a self-hosted Access application for field's hostname, copy its AUD tag into `ACCESS_AUD` and deploy again. Add a second Access application with a Bypass policy for the legal pages (`/privacy`, `/datenschutz`, `/imprint`, `/impressum`) plus `/favicon.svg` and `/assets/*`, so anyone can read them. Without a valid Access token field answers only those pages and `/health`.
 
 For the admin adapters, add the D1 ids of your apps (and the R2 bucket / queue where listed) to `wrangler.jsonc`. field writes to those databases, so only give it the ones you want to manage from here.
 

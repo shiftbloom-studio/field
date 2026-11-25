@@ -47,16 +47,16 @@ const strip = (buckets, tz) =>
     .join("")}</div>`;
 
 // ---------- layout ----------
-function layout(env, { title, user, active = "", body, extraCss = "" }) {
+export function layout(env, { title, user, active = "", body, extraCss = "", lang = "en" }) {
   const source = env.SOURCE_URL || "https://github.com/shiftbloom-studio/field";
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  return `<!doctype html><html lang="${lang === "de" ? "de" : "en"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} · field</title><meta name="robots" content="noindex"><meta name="theme-color" content="#ffffff">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/fonts.css">
 <style>${css}${extraCss}</style></head><body><div class="wrap">
 <header class="top"><a class="brand" href="/" aria-label="field, shiftbloom studio">${bloom({ size: 28, solid: true })}<span class="word">field<i>.</i></span><span class="by">shiftbloom studio</span></a>
 <nav><a href="/" class="${active === "home" ? "on" : ""}">overview</a><a href="/audit" class="${active === "audit" ? "on" : ""}">audit log</a>${user ? `<span class="who">${esc(user.email)}</span>` : ""}</nav></header>
 ${body}
-<footer class="foot"><span class="label">field · intranet of ${esc(env.ORG_NAME || "shiftbloom studio")}</span><span class="label"><a href="${esc(source)}" style="color:inherit">source</a> · agpl-3.0</span></footer>
+<footer class="foot"><span class="label">field · intranet of ${esc(env.ORG_NAME || "shiftbloom studio")}</span><span class="label legal"><a href="/privacy">privacy</a> · <a href="/datenschutz">datenschutz</a> · <a href="/imprint">imprint</a> · <a href="/impressum">impressum</a> · <a href="${esc(source)}">source</a> · agpl-3.0</span></footer>
 </div></body></html>`;
 }
 

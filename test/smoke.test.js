@@ -62,6 +62,16 @@ test("admin actions", async () => {
   assert.equal(n.n, 7);
 });
 
+test("legal pages are public and bilingual", async () => {
+  for (const [p, needle] of [["/privacy", "Privacy policy"], ["/datenschutz", "Datenschutzerklärung"], ["/imprint", "§ 5 DDG"], ["/impressum", "Angaben gemäß"]]) {
+    const r = await mf.dispatchFetch(`http://example.com${p}`);
+    assert.equal(r.status, 200, p);
+    const t = await r.text();
+    assert.ok(t.includes(needle), p);
+    assert.ok(t.includes("Test Operator"), p);
+  }
+});
+
 test("cross-origin posts and missing login are refused", async () => {
   const r = await mf.dispatchFetch("http://localhost/check", { method: "POST", headers: { origin: "https://evil.test" } });
   assert.equal(r.status, 403);

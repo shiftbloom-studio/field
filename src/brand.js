@@ -100,6 +100,7 @@ tr:hover td{background:rgba(255,233,239,.35)}
 .tile small{display:block;color:var(--ink60);font-size:12px;margin-top:4px}
 .flash{border-radius:14px;padding:12px 16px;margin:20px 0 0;font-size:14px;display:flex;gap:10px;align-items:center}
 .flash.ok{background:var(--warm)}.flash.err{background:var(--blush);color:var(--root)}
+.foot .legal a{color:inherit}
 .foot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:22px 0 30px;margin-top:72px;border-top:1px solid var(--line)}
 .unfold{animation:unfold .6s var(--ease) both}
 @keyframes unfold{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
