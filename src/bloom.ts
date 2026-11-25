@@ -8,15 +8,16 @@ const RINGS = [
   { r: 50, petals: 8, w: 19, l: 45, root: "#FF7E9E", tip: "#FFC2D3", offset: 40.5 },
   { r: 27, petals: 6, w: 12.96, l: 24.3, root: "#FFB4CA", tip: "#FFDCE7", offset: 70.5 },
 ];
-const n = (v) => Number(v.toFixed(2));
-const petal = (w, l) => `M 0,0 C ${w},0 ${w},${-n(0.55 * l)} 0,${-l} C ${-w},${-n(0.55 * l)} ${-w},0 0,0 Z`;
+const n = (v: number) => Number(v.toFixed(2));
+const petal = (w: number, l: number) => `M 0,0 C ${w},0 ${w},${-n(0.55 * l)} 0,${-l} C ${-w},${-n(0.55 * l)} ${-w},0 0,0 Z`;
 
 /**
- * @param {{ size?: number, variant?: "gradient" | "solid", id?: string, cls?: string, title?: string }} [o]
  * `anim` wraps each ring in <g class="ring rN"> (N = 0 outer … 3 inner) for unfurl/breathe motion.
  * `id` must be unique per page when more than one gradient bloom is rendered.
  */
-export function bloomSvg({ size = 30, variant = "gradient", id = "sb-bloom-ring", cls = "", title = "", anim = false } = {}) {
+export interface BloomOptions { size?: number; variant?: "gradient" | "solid"; id?: string; cls?: string; title?: string; anim?: boolean }
+
+export function bloomSvg({ size = 30, variant = "gradient", id = "sb-bloom-ring", cls = "", title = "", anim = false }: BloomOptions = {}): string {
   const solid = variant === "solid";
   const defs = solid
     ? ""

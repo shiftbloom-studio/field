@@ -96,7 +96,7 @@ field writes tokens straight into the app's own D1 database, in the format that 
 
 Expiry choices are 30, 90 or 180 days, one year, a date (end of that day, UTC) or never. Creating and revoking are written to the audit log with label and token prefix. For rhizome you either pick an existing agent client or choose *new agent…* and enter its agent and provider slugs; the new client gets rhizome's default grants (shared profile, all projects, its own agent scope).
 
-To add tokens for another app, give its adapter a `tokens` provider (`list`, `create`, `revoke`, optional `fields`), see `src/tokens.js`.
+To add tokens for another app, give its adapter a `tokens` provider (`list`, `create`, `revoke`, optional `fields`), see `src/tokens.ts` and the types in `src/types.ts`.
 
 ## Development
 

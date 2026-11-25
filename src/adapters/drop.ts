@@ -1,16 +1,19 @@
 // drop: uploads, pastes and short links. Reads drop's D1 directly; deletes go through
 // drop's own /d/<id>/<token> route so R2 objects, thumbnails and KV links disappear together.
 
-import { randomToken, sha256Hex } from "../tokens.js";
+import { randomToken, sha256Hex } from "../tokens.ts";
+import type { Adapter, Env, Row, Table, Tile, TokenRow } from "../types.ts";
 
-const db = (env) => env.DROP_DB;
+type Counts = Record<string, number | null>;
+
+const db = (env: Env) => env.DROP_DB!;
 
 export default {
   binds: ["DROP_DB"],
 
   async stats(env) {
     const now = Math.floor(Date.now() / 1000);
-    const s = await db(env).prepare(
+    const s = (await db(env).prepare(
       `SELECT COUNT(*) AS n,
               SUM(kind = 'file') AS files, SUM(kind = 'paste') AS pastes, SUM(kind = 'link') AS links,
               COALESCE(SUM(size), 0) AS bytes, COALESCE(SUM(views), 0) AS views,
@@ -18,7 +21,7 @@ export default {
               SUM(expires_at IS NOT NULL AND expires_at < ?1 + 86400) AS expiring,
               SUM(created_at >= ?1 - 86400) AS today
          FROM items`,
-    ).bind(now).first();
+    ).bind(now).first<Counts>())!;
     return [
       { label: "items", value: s.n, hint: `${s.files || 0} files · ${s.pastes || 0} pastes · ${s.links || 0} links` },
       { label: "storage", value: s.bytes, type: "size" },
@@ -31,8 +34,8 @@ export default {
   },
 
   async panel(env, app, params) {
-    const where = [];
-    const binds = [];
+    const where: string[] = [];
+    const binds: string[] = [];
     const q = (params.get("q") || "").trim();
     const kind = params.get("kind") || "";
     if (q) { where.push("(id LIKE ? OR name LIKE ? OR alt LIKE ?)"); binds.push(`%${q}%`, `%${q}%`, `%${q}%`); }
@@ -54,9 +57,9 @@ export default {
         title: "items",
         empty: "No items found.",
         columns: [
-          { key: "id", label: "id", type: "link", href: (r) => `${base}/${r.id}` },
+          { key: "id", label: "id", type: "link", href: (r: Row) => `${base}/${r.id}` },
           { key: "kind", label: "kind", type: "tag" },
-          { key: "name", label: "name", render: (r) => r.kind === "link" ? r.target : r.name || r.alt || "" },
+          { key: "name", label: "name", render: (r: Row) => r.kind === "link" ? r.target : r.name || r.alt || "" },
           { key: "size", label: "size", type: "size" },
           { key: "views", label: "views", type: "num" },
           { key: "created_at", label: "uploaded", type: "time" },
@@ -73,9 +76,9 @@ export default {
     async delete(env, app, form) {
       const id = String(form.get("id") || "");
       if (!/^[A-Za-z0-9]{3,16}$/.test(id)) throw new Error("invalid id");
-      const it = await db(env).prepare("SELECT id, delete_token FROM items WHERE id = ?").bind(id).first();
+      const it = await db(env).prepare("SELECT id, delete_token FROM items WHERE id = ?").bind(id).first<{ id: string; delete_token: string }>();
       if (!it) throw new Error("item no longer exists");
-      const svc = app.service && env[app.service];
+      const svc = (app.service && env[app.service]) as Fetcher | undefined | "";
       if (!svc) throw new Error("service binding to drop is missing");
       const res = await svc.fetch(new Request(`${app.url || "https://drop.invalid"}/d/${it.id}/${it.delete_token}`, { method: "DELETE" }));
       if (!res.ok) throw new Error(`drop answered with HTTP ${res.status}`);
@@ -95,7 +98,7 @@ export default {
     async list(env) {
       const { results } = await db(env).prepare(
         "SELECT id, label, prefix, created_by AS owner, created_at, expires_at, last_used_at, revoked_at FROM api_tokens ORDER BY revoked_at IS NOT NULL, created_at DESC LIMIT 200",
-      ).all();
+      ).all<TokenRow>();
       return results;
     },
     async create(env, { label, expiresAt, user }) {
@@ -115,24 +118,24 @@ export default {
       return r.meta?.changes ?? 0;
     },
   },
-};
+} satisfies Adapter;
 
 // Token requests from drop's public form (drop migration 0005). field only decides; drop generates
 // the token when the requester collects it through their private link, so field never sees it.
 const DAY = 86400;
 
-async function hasRequests(env) {
+async function hasRequests(env: Env): Promise<boolean> {
   const t = await db(env).prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'token_requests'").first();
   return !!t;
 }
 
-async function waitingRequests(env) {
+async function waitingRequests(env: Env): Promise<Tile[]> {
   if (!(await hasRequests(env))) return [];
-  const r = await db(env).prepare("SELECT COUNT(*) AS n FROM token_requests WHERE status = 'pending'").first();
+  const r = (await db(env).prepare("SELECT COUNT(*) AS n FROM token_requests WHERE status = 'pending'").first<{ n: number }>())!;
   return [{ label: "token requests", value: r.n || 0, hint: "waiting for a decision", warn: (r.n || 0) > 0 }];
 }
 
-async function requestTable(env) {
+async function requestTable(env: Env): Promise<Table | null> {
   if (!(await hasRequests(env))) return null;
   const { results } = await db(env).prepare(
     `SELECT id, name, reason, status, created_at, decided_at, token_expires_at FROM token_requests
@@ -151,14 +154,14 @@ async function requestTable(env) {
     ],
     rows: results,
     rowActions: [
-      { action: "approve-request", label: "approve, 90 days", when: (r) => r.status === "pending" },
-      { action: "approve-request-year", label: "approve, 1 year", when: (r) => r.status === "pending" },
-      { action: "reject-request", label: "reject", confirm: "Reject this request?", danger: true, when: (r) => r.status === "pending" },
+      { action: "approve-request", label: "approve, 90 days", when: (r: Row) => r.status === "pending" },
+      { action: "approve-request-year", label: "approve, 1 year", when: (r: Row) => r.status === "pending" },
+      { action: "reject-request", label: "reject", confirm: "Reject this request?", danger: true, when: (r: Row) => r.status === "pending" },
     ],
   };
 }
 
-async function decide(env, form, status, days) {
+async function decide(env: Env, form: FormData, status: string, days?: number) {
   const id = String(form.get("id") || "");
   if (!/^[A-Za-z0-9]{6,32}$/.test(id)) throw new Error("invalid request id");
   const now = Math.floor(Date.now() / 1000);

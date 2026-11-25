@@ -2,7 +2,7 @@
 // service bindings, runs the cron, renders every page and fires each admin action once.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { boot } from "./fixture.js";
+import { boot } from "./fixture.ts";
 
 let mf, env, deleted;
 before(async () => ({ mf, env, deleted } = await boot()));
@@ -108,7 +108,7 @@ test("cross-origin posts and missing login are refused", async () => {
 });
 
 test("API tokens: create shows the secret once, stores a hash, revoke works", async () => {
-  const { sha256Hex } = await import("../src/tokens.js");
+  const { sha256Hex } = await import("../src/tokens.ts");
   // drop
   let r = await post("/apps/drop/tokens", { label: "laptop", expires: "30" });
   assert.equal(r.status, 200);

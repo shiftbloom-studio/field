@@ -2,10 +2,10 @@
 
 Issues and pull requests are welcome.
 
-- Keep it dependency-free at runtime: plain ES modules, no bundler.
-- New admin features go into an adapter in `src/adapters/`. An adapter exports `binds`, `stats()`, `panel()` and `actions`; look at `drop.js` for a compact example.
+- Keep it dependency-free at runtime: strict TypeScript with erasable syntax only (no enums or namespaces), bundled by Wrangler on deploy.
+- New admin features go into an adapter in `src/adapters/`. An adapter exports `binds`, `stats()`, `panel()` and `actions`; look at `drop.ts` for a compact example (the `Adapter` type in `src/types.ts` describes the shape).
 - Destructive actions need a `confirm` text and go through the protocol automatically.
-- Run `npm test` before you open a PR, and add a case to `test/smoke.test.js` for new actions.
+- Run `npm run typecheck` and `npm test` before you open a PR, and add a case to `test/smoke.test.ts` for new actions.
 - UI follows the shiftbloom brand book v2: white paper, ink text, Bloom Red for actions only, no gradients outside the mark.
 
 ## Working on an issue
