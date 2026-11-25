@@ -9,6 +9,7 @@
   "compatibility_date": "2026-11-01",
   "observability": { "enabled": true },
   "workers_dev": false,
+  "preview_urls": false,
   // "routes": [{ "pattern": "field.example.com", "custom_domain": true }],
 
   "triggers": { "crons": ["*/5 * * * *"] },
