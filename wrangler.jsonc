@@ -22,9 +22,15 @@
     { "binding": "GROW_DB", "database_name": "grow-cloud", "database_id": "<grow-db-id>" },
     { "binding": "ROOTS_DB", "database_name": "roots", "database_id": "<roots-db-id>" },
     // rhizome's control plane (clients and hashed API keys only, never memory content).
-    { "binding": "RHIZOME_DB", "database_name": "rhizome-control", "database_id": "<rhizome-control-db-id>" }
+    { "binding": "RHIZOME_DB", "database_name": "rhizome-control", "database_id": "<rhizome-control-db-id>" },
+    // leaf's pastes and API tokens (same api_tokens schema as drop, "leaf_" prefix).
+    { "binding": "LEAF_DB", "database_name": "leaf-db", "database_id": "<leaf-db-id>" }
   ],
-  "r2_buckets": [{ "binding": "CONVERT_FILES", "bucket_name": "convert-files" }],
+  "r2_buckets": [
+    { "binding": "CONVERT_FILES", "bucket_name": "convert-files" },
+    // Optional: lets the leaf admin screen delete pastes (text lives in R2).
+    { "binding": "LEAF_PASTES", "bucket_name": "leaf-pastes" }
+  ],
   "queues": { "producers": [{ "binding": "ROOTS_QUEUE", "queue": "roots-index" }] },
 
   // Health checks go through service bindings: no public round trip, no Access in the way.
@@ -34,7 +40,11 @@
     { "binding": "GROW", "service": "grow-cloud" },
     { "binding": "ROOTS", "service": "roots" },
     { "binding": "PETAL", "service": "petal" },
-    { "binding": "RHIZOME", "service": "rhizome" }
+    { "binding": "RHIZOME", "service": "rhizome" },
+    { "binding": "LEAF", "service": "leaf" },
+    { "binding": "STEM", "service": "stem" },
+    { "binding": "VA_WEB", "service": "va-dispatch-web" },
+    { "binding": "VA_API", "service": "va-dispatch-api" }
   ],
 
   "vars": {
@@ -69,13 +79,20 @@
       // roots sits behind Access and answers 401 without a token: that still proves the Worker is up.
       { "id": "roots", "name": "roots", "url": "https://roots.example.com", "blurb": "Knowledge base over repos and docs", "service": "ROOTS", "health": "/", "expect": [401], "db": "ROOTS_DB", "adapter": "roots" },
       { "id": "petal", "name": "petal", "url": "https://chat.example.com", "blurb": "Twitch chat relay", "service": "PETAL", "health": "/health" },
-      { "id": "rhizome", "name": "rhizome", "url": "https://rhizome.example.com", "blurb": "Long-term memory for AI agents", "service": "RHIZOME", "health": "/v1/health", "db": "RHIZOME_DB", "adapter": "rhizome" }
+      { "id": "rhizome", "name": "rhizome", "url": "https://rhizome.example.com", "blurb": "Long-term memory for AI agents", "service": "RHIZOME", "health": "/v1/health", "db": "RHIZOME_DB", "adapter": "rhizome" },
+      { "id": "leaf", "name": "leaf", "url": "https://leaf.example.com", "blurb": "Pastebin with syntax highlighting", "service": "LEAF", "health": "/health", "db": "LEAF_DB", "adapter": "leaf" },
+      { "id": "stem", "name": "stem", "url": "https://stem.example.com", "blurb": "Sign-in and accounts for the apps", "service": "STEM", "health": "/health" },
+      { "id": "va-dispatcher", "name": "va dispatcher", "url": "https://www.va-dispatcher.example", "blurb": "Dispatch for virtual airlines", "service": "VA_WEB", "health": "/" },
+      { "id": "va-dispatcher-api", "name": "va dispatcher api", "url": "https://www.va-dispatcher.example/api", "blurb": "API behind va dispatcher", "service": "VA_API", "health": "/health" }
     ],
     "LINKS": [
       { "name": "Cloudflare", "url": "https://dash.cloudflare.com", "note": "Dashboard" },
       { "name": "GitHub", "url": "https://github.com/shiftbloom-studio", "note": "All repositories" }
     ]
   }
+  // Optional alert emails (Cloudflare Email Sending, the sender's domain must be onboarded):
+  // "send_email": [{ "name": "ALERT_MAIL", "destination_address": "<you@example.com>" }],
+  // plus vars "ALERT_EMAIL_FROM": "field <alerts@mail.example.com>" and "ALERT_EMAIL_TO": "<you@example.com>".
   // Optional secret: ALERT_WEBHOOK (Discord or Slack incoming webhook) → `npx wrangler secret put ALERT_WEBHOOK`
   // Optional secret: CF_API_TOKEN (read-only, see README) → `npx wrangler secret put CF_API_TOKEN`
 }

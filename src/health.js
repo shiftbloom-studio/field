@@ -41,14 +41,38 @@ export async function probe(env, app) {
   return { ok: !error, status, ms: Date.now() - started, error, detail };
 }
 
+/**
+ * Send an alert to every configured channel: email (send_email binding ALERT_MAIL plus
+ * ALERT_EMAIL_FROM / ALERT_EMAIL_TO) and/or a Discord or Slack webhook (ALERT_WEBHOOK).
+ * Callers only alert on state changes, so nothing repeats every five minutes.
+ */
 export async function alert(env, text) {
-  if (!env.ALERT_WEBHOOK) return;
-  // Works with Discord ("content") and Slack-compatible ("text") incoming webhooks.
-  await fetch(env.ALERT_WEBHOOK, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ content: text, text }),
-  }).catch((e) => console.error("alert failed", e));
+  const jobs = [];
+  if (env.ALERT_MAIL && env.ALERT_EMAIL_TO && env.ALERT_EMAIL_FROM) {
+    const subject = `[field] ${text.replace(/\s+/g, " ").slice(0, 120)}`;
+    jobs.push(
+      env.ALERT_MAIL.send({ from: parseFrom(env.ALERT_EMAIL_FROM), to: env.ALERT_EMAIL_TO, subject, text: `${text}\n` })
+        .catch((e) => console.error("alert mail failed", e)),
+    );
+  }
+  if (env.ALERT_WEBHOOK) {
+    // Works with Discord ("content") and Slack-compatible ("text") incoming webhooks.
+    jobs.push(
+      fetch(env.ALERT_WEBHOOK, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: text, text }),
+      }).catch((e) => console.error("alert webhook failed", e)),
+    );
+  }
+  if (!jobs.length) console.warn("alert (no channel configured):", text);
+  await Promise.all(jobs);
+}
+
+/** "Name <a@b>" → { name, email }; a bare address stays a string. */
+export function parseFrom(v) {
+  const m = /^\s*(.*?)\s*<([^<>\s]+@[^<>\s]+)>\s*$/.exec(String(v));
+  return m ? { name: m[1].replace(/^"|"$/g, ""), email: m[2] } : String(v).trim();
 }
 
 /** Store a probe result, keep `state` current and open/close incidents. */

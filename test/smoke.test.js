@@ -18,7 +18,7 @@ test("cron records checks, opens an incident after two failures", async () => {
   const r1 = await post("/check");
   assert.equal(r1.status, 303);
   const st = (await env.DB.prepare("SELECT app, ok, fails FROM state ORDER BY app").all()).results;
-  assert.deepEqual(st.map((s) => [s.app, s.ok]), [["convert", 1], ["drop", 1], ["grow", 0], ["petal", 1], ["rhizome", 1], ["roots", 1]]);
+  assert.deepEqual(st.map((s) => [s.app, s.ok]), [["convert", 1], ["drop", 1], ["grow", 0], ["leaf", 1], ["petal", 1], ["rhizome", 1], ["roots", 1]]);
   assert.equal(st.find((s) => s.app === "grow").fails, 2);
   const inc = await env.DB.prepare("SELECT * FROM incidents WHERE app = 'grow' AND resolved_at IS NULL").first();
   assert.ok(inc, "incident open");
@@ -29,7 +29,7 @@ test("pages render", async () => {
   assert.match(home, /grow is down/);
   assert.match(home, /coming soon/);
   assert.ok(!home.includes("<b>channel</b>"));
-  for (const id of ["drop", "convert", "grow", "roots", "rhizome", "petal", "runners"]) {
+  for (const id of ["drop", "convert", "grow", "roots", "rhizome", "leaf", "petal", "runners"]) {
     const r = await get(`/apps/${id}`);
     const t = await r.text();
     assert.equal(r.status, 200, id);
@@ -37,8 +37,12 @@ test("pages render", async () => {
   }
   assert.match(await (await get("/apps/drop")).text(), /cat\.jpg/);
   assert.match(await (await get("/apps/grow")).text(), /My &lt;b&gt;channel/);
+  const leafPage = await (await get("/apps/leaf")).text();
+  assert.match(leafPage, /&lt;i&gt;notes/);
+  assert.match(leafPage, /href="https:\/\/leaf\.test\/Paste0000001"/);
+  assert.doesNotMatch(leafPage, /href="https:\/\/leaf\.test\/Burn00000001"/, "burn pastes are not linked");
   const s = await (await get("/api/status")).json();
-  assert.equal(s.apps.length, 7);
+  assert.equal(s.apps.length, 8);
   assert.equal((await get("/audit")).status, 200);
 });
 
@@ -75,8 +79,15 @@ test("admin actions", async () => {
   assert.match(r.headers.get("location"), /ok=/);
   r = await post("/apps/roots/actions/sync-all", { id: "*" });
   assert.match(r.headers.get("location"), /ok=/);
+  r = await post("/apps/leaf/actions/delete", { id: "Paste0000001" });
+  assert.match(r.headers.get("location"), /ok=/);
+  assert.equal(await env.LEAF_DB.prepare("SELECT id FROM pastes WHERE id = 'Paste0000001'").first(), null);
+  assert.equal(await env.LEAF_PASTES.get("p/Paste0000001"), null);
+  assert.equal(await env.LEAF_PASTES.get("h/Paste0000001"), null);
+  r = await post("/apps/leaf/actions/delete", { id: "../x" });
+  assert.match(r.headers.get("location"), /err=/);
   const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM audit").first();
-  assert.equal(n.n, 11);
+  assert.equal(n.n, 13);
 });
 
 test("legal pages are public and bilingual", async () => {
@@ -130,6 +141,18 @@ test("API tokens: create shows the secret once, stores a hash, revoke works", as
   assert.equal((await env.DROP_DB.prepare("SELECT expires_at FROM api_tokens WHERE label = 'forever'").first()).expires_at, null);
   r = await post("/apps/convert/tokens", { label: "x", expires: "30" });
   assert.equal(r.status, 404);
+
+  // leaf: same schema as drop, leaf_ prefix
+  r = await post("/apps/leaf/tokens", { label: "editor", expires: "90" });
+  assert.equal(r.status, 200);
+  const leafSecret = (await r.text()).match(/<code id="tok">(leaf_[A-Za-z0-9]{40})<\/code>/)?.[1];
+  assert.ok(leafSecret, "leaf secret shown");
+  const lrow = await env.LEAF_DB.prepare("SELECT * FROM api_tokens WHERE label = 'editor'").first();
+  assert.equal(lrow.hash, await sha256Hex(leafSecret));
+  assert.equal(lrow.prefix, leafSecret.slice(0, 12));
+  r = await post("/apps/leaf/tokens/revoke", { id: lrow.id });
+  assert.match(r.headers.get("location"), /ok=/);
+  assert.ok((await env.LEAF_DB.prepare("SELECT revoked_at FROM api_tokens WHERE id = ?").bind(lrow.id).first()).revoked_at);
 
   // rhizome: keys in rhizome's own format, times in ms
   const day = new Date(Date.now() + 400 * 86400e3).toISOString().slice(0, 10);

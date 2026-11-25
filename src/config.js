@@ -18,7 +18,7 @@ const parse = (v, fallback) => {
  * @property {string} [service]   name of a service binding to the app's Worker (preferred for checks)
  * @property {string} [health]    path to probe, default "/"
  * @property {number[]} [expect]  HTTP statuses that count as healthy, default 200–399
- * @property {string} [adapter]   admin adapter: drop | convert | grow | roots
+ * @property {string} [adapter]   admin adapter: drop | convert | grow | roots | rhizome | leaf
  * @property {string} [db]        name of a D1 binding that is probed alongside the HTTP check
  * @property {string} [status]    "planned" shows a placeholder card without checks
  * @property {string} [repo]      source repository URL

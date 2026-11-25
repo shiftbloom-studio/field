@@ -192,7 +192,10 @@ pre.detail{font:12px/1.5 var(--mono);background:var(--ink);color:#fff;border-rad
 function cell(col, row, tz) {
   const v = col.render ? col.render(row) : row[col.key];
   switch (col.type) {
-    case "link": return `<a class="mono" href="${esc(col.href(row))}" target="_blank" rel="noopener">${esc(v)}</a>`;
+    case "link": {
+      const href = col.href(row);
+      return href ? `<a class="mono" href="${esc(href)}" target="_blank" rel="noopener">${esc(v)}</a>` : `<span class="mono">${esc(v)}</span>`;
+    }
     case "tag": return v ? `<span class="tag">${esc(v)}</span>` : "";
     case "mono": return v == null || v === "" ? `<span class="muted">${esc(col.none || "")}</span>` : `<span class="mono">${esc(v)}</span>`;
     case "size": return fmtSize(v);
