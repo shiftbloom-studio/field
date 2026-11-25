@@ -46,6 +46,23 @@ test("admin actions", async () => {
   let r = await post("/apps/drop/actions/delete", { id: "AbC12" });
   assert.match(r.headers.get("location"), /ok=/);
   assert.deepEqual(deleted, ["/d/AbC12/tok123"]);
+  // token requests: listed with escaping, approved once, rejected, never decided twice
+  const dropPage = await (await get("/apps/drop")).text();
+  assert.match(dropPage, /token requests/);
+  assert.match(dropPage, /Ada &lt;b&gt;L&lt;\/b&gt;/);
+  r = await post("/apps/drop/actions/approve-request", { id: "req000000001" });
+  assert.match(r.headers.get("location"), /ok=/);
+  const ok = await env.DROP_DB.prepare("SELECT status, label, token_expires_at, decided_at FROM token_requests WHERE id = 'req000000001'").first();
+  assert.equal(ok.status, "approved");
+  assert.equal(ok.label, "request: Ada <b>L</b>");
+  assert.ok(Math.abs(ok.token_expires_at - ok.decided_at - 90 * 86400) < 5);
+  r = await post("/apps/drop/actions/approve-request-year", { id: "req000000001" });
+  assert.match(r.headers.get("location"), /err=/);
+  r = await post("/apps/drop/actions/reject-request", { id: "req000000002" });
+  assert.match(r.headers.get("location"), /ok=/);
+  assert.equal((await env.DROP_DB.prepare("SELECT status FROM token_requests WHERE id = 'req000000002'").first()).status, "rejected");
+  r = await post("/apps/drop/actions/reject-request", { id: "../etc" });
+  assert.match(r.headers.get("location"), /err=/);
   r = await post("/apps/convert/actions/delete-job", { id: "11111111-2222-3333-4444-555555555555" });
   assert.match(r.headers.get("location"), /ok=/);
   r = await post("/apps/convert/actions/reset-usage", { id: `${new Date().toISOString().slice(0, 10)}|ip:abc` });
@@ -59,7 +76,7 @@ test("admin actions", async () => {
   r = await post("/apps/roots/actions/sync-all", { id: "*" });
   assert.match(r.headers.get("location"), /ok=/);
   const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM audit").first();
-  assert.equal(n.n, 7);
+  assert.equal(n.n, 11);
 });
 
 test("legal pages are public and bilingual", async () => {
