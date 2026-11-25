@@ -52,7 +52,7 @@ const strip = (buckets, tz) =>
 export function layout(env, { title, user, active = "", body, extraCss = "", lang = "en" }) {
   const source = env.SOURCE_URL || "https://github.com/shiftbloom-studio/field";
   return `<!doctype html><html lang="${lang === "de" ? "de" : "en"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(title)} · field</title><meta name="robots" content="noindex"><meta name="theme-color" content="#ffffff">
+<title>${esc(title)} · field</title><meta name="robots" content="noindex"><meta name="theme-color" content="#F6F1EE">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/fonts.css">
 <style>${css}${extraCss}</style></head><body><div class="wrap">
 <header class="top"><a class="brand" href="/" aria-label="field, shiftbloom studio">${bloom({ size: 30 })}<span class="word">field<i>.</i></span><span class="by">shiftbloom <span class="studio">studio</span><i>.</i></span></a>
@@ -79,7 +79,7 @@ const homeCss = `
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
 .card{background:var(--warm);border-radius:20px;padding:20px 22px;display:flex;flex-direction:column;gap:14px;transition:transform .24s var(--ease)}
 .card:hover{transform:translateY(-2px)}
-.card.planned{background:#fff;box-shadow:inset 0 0 0 1.5px var(--line);border:0}
+.card.planned{background:#FBF8F6;box-shadow:inset 0 0 0 1.5px var(--line);border:0}
 .card.down{box-shadow:inset 0 0 0 1.5px var(--bloom)}
 .card header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .card h3 a{color:var(--ink);background:none}.card h3 a:hover{color:var(--root)}
@@ -94,7 +94,7 @@ const homeCss = `
 section{margin-top:56px}section>header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:16px}
 .list{list-style:none;margin:0;padding:0}.list li{display:flex;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .links{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-.links a{display:block;background:#fff;box-shadow:inset 0 0 0 1px var(--line);border-radius:16px;padding:14px 16px;color:var(--ink);transition:box-shadow .24s var(--settle)}
+.links a{display:block;background:#FBF8F6;box-shadow:inset 0 0 0 1px var(--line);border-radius:16px;padding:14px 16px;color:var(--ink);transition:box-shadow .24s var(--settle)}
 .links a:hover{box-shadow:inset 0 0 0 1px var(--ink);background-size:0}
 .links a small{display:block;color:var(--ink60);font-size:13px}
 .sprinkle{position:absolute;pointer-events:none}
@@ -295,7 +295,7 @@ const tokenCss = `
 .tokform input[name=label]{min-width:240px}
 .tokform .date{display:none}.tokform:has(select[name=expires] option[value=date]:checked) .date{display:flex}
 .secret{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0 8px}
-.secret code{font:500 15px/1.4 var(--mono);background:#fff;box-shadow:inset 0 0 0 1.5px var(--ink);border-radius:12px;padding:12px 14px;word-break:break-all;user-select:all;flex:1;min-width:260px}
+.secret code{font:500 15px/1.4 var(--mono);background:#FBF8F6;box-shadow:inset 0 0 0 1.5px var(--ink);border-radius:12px;padding:12px 14px;word-break:break-all;user-select:all;flex:1;min-width:260px}
 `;
 
 function renderTokens(app, t, tz) {
