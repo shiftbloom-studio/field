@@ -16,7 +16,9 @@ field runs as a single Cloudflare Worker behind Cloudflare Access. Every five mi
   | convert (file conversion) | jobs, running, failed, output volume, daily quota | delete a job and its files, reset a daily quota counter |
   | [grow](https://github.com/shiftbloom-studio/grow) (OBS to-do overlays) | channels, active, Twitch-linked, open sessions | sign a channel out, delete a channel |
   | [roots](https://github.com/shiftbloom-studio/roots) (knowledge base) | documents, chunks, sources, last indexed | re-sync one source or all of them |
+  | [rhizome](https://github.com/shiftbloom-studio/rhizome) (memory for AI agents) | people, agent clients, active keys, last key use | add an agent client together with its first key |
 
+- **API tokens** for the apps that have an API (drop and rhizome): create a token with a label and an expiry date, see when it was last used, revoke it. The token is shown once, right after it's created, in the response itself (never in a URL or the audit log). The apps store and check only its SHA-256 hash and refuse it once it has expired or was revoked. See [API tokens](#api-tokens).
 - **Protocol** of every admin action, with who did it and when.
 - **Alerts** to a Discord or Slack webhook when something goes down and when it comes back.
 - **Imprint and privacy policy** in English and German (`/imprint`, `/impressum`, `/privacy`, `/datenschutz`), filled from the `OPERATOR` config. They are the only pages reachable without signing in; give them a bypass rule in your Access application.
@@ -60,7 +62,7 @@ An entry in `APPS`:
   "health": "/health",          // path to probe, default "/"
   "expect": [200],              // optional, default: any 2xx/3xx
   "db": "DROP_DB",              // optional D1 binding to ping
-  "adapter": "drop"             // optional: drop | convert | grow | roots
+  "adapter": "drop"             // optional: drop | convert | grow | roots | rhizome
 }
 ```
 
@@ -78,6 +80,19 @@ npx wrangler deploy
 Then, in Cloudflare Zero Trust, create a self-hosted Access application for field's hostname, copy its AUD tag into `ACCESS_AUD` and deploy again. Add a second Access application with a Bypass policy for the legal pages (`/privacy`, `/datenschutz`, `/imprint`, `/impressum`) plus `/favicon.svg` and `/assets/*`, so anyone can read them. Without a valid Access token field answers only those pages and `/health`.
 
 For the admin adapters, add the D1 ids of your apps (and the R2 bucket / queue where listed) to `wrangler.jsonc`. field writes to those databases, so only give it the ones you want to manage from here.
+
+## API tokens
+
+field writes tokens straight into the app's own D1 database, in the format that app checks:
+
+| App | Table | Token | Times | Needs |
+| --- | --- | --- | --- | --- |
+| drop | `api_tokens` | `drop_` + 40 characters | unix seconds | drop migration `0004_api_tokens.sql` |
+| rhizome | `api_keys` (one client per agent and provider) | `rz_` + 32 characters | epoch milliseconds | rhizome migration `0002_key_label_expiry.sql` |
+
+Expiry choices are 30, 90 or 180 days, one year, a date (end of that day, UTC) or never. Creating and revoking are written to the audit log with label and token prefix. For rhizome you either pick an existing agent client or choose *new agent…* and enter its agent and provider slugs; the new client gets rhizome's default grants (shared profile, all projects, its own agent scope).
+
+To add tokens for another app, give its adapter a `tokens` provider (`list`, `create`, `revoke`, optional `fields`), see `src/tokens.js`.
 
 ## Development
 

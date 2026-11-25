@@ -1,4 +1,5 @@
 import { WATCHERS } from "./watch.js";
+import { EXPIRY_CHOICES, tokenState } from "./tokens.js";
 import { bloom, css, esc, SPARK } from "./brand.js";
 
 // ---------- formatting ----------
@@ -243,7 +244,7 @@ function renderFilters(filters, params) {
   return `<form class="filters" method="get">${f}<button class="btn sm ghost">filter</button></form>`;
 }
 
-export function appPage(env, { user, app, state, up, strip7d, checks, incidents, tiles, panel, panelError, params, tz }) {
+export function appPage(env, { user, app, state, up, strip7d, checks, incidents, tiles, panel, panelError, tokens, params, tz }) {
   const h = health(state, app);
   const detail = state?.detail ? (() => { try { return JSON.stringify(JSON.parse(state.detail), null, 2); } catch { return state.detail; } })() : "";
   const body = `${flash(params)}
@@ -267,6 +268,7 @@ ${tiles?.length ? `<section><header><h2>Numbers</h2></header><div class="tiles">
     .join("")}</div></section>` : ""}
 
 ${panelError ? `<section><div class="errbox">Could not load the admin view: ${esc(panelError)}</div></section>` : ""}
+${tokens ? renderTokens(app, tokens, tz) : ""}
 ${panel ? `<section><header><h2>Manage</h2><div class="filters">${(panel.actions || []).map((a) => actionForm(app.id, a, "*")).join("")}</div></header>${renderFilters(panel.filters, params)}</section>${panel.tables.map((t) => renderTable(app, t, tz)).join("")}` : ""}
 
 ${app.status !== "planned" ? `<section><header><h3>Recent checks</h3><span class="label">last ${checks.length}</span></header><div class="tablewrap"><table><thead><tr><th>time</th><th>result</th><th class="num">http</th><th class="num">ms</th><th>error</th></tr></thead><tbody>${
@@ -281,7 +283,63 @@ ${app.status !== "planned" ? `<section><header><h3>Recent checks</h3><span class
           .join("")}</tbody></table></div>`
       : `<p class="muted">No incidents on record.</p>`
   }</section>` : ""}`;
-  return layout(env, { title: app.name, user, active: "", body, extraCss: appCss });
+  return layout(env, { title: app.name, user, active: "", body, extraCss: appCss + (tokens ? tokenCss : "") });
+}
+
+// ---------- API tokens ----------
+const tokenCss = `
+.tokform{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:14px}
+.tokform label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink60)}
+.tokform input[name=label]{min-width:240px}
+.tokform .date{display:none}.tokform:has(select[name=expires] option[value=date]:checked) .date{display:flex}
+.secret{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0 8px}
+.secret code{font:500 15px/1.4 var(--mono);background:#fff;box-shadow:inset 0 0 0 1.5px var(--ink);border-radius:12px;padding:12px 14px;word-break:break-all;user-select:all;flex:1;min-width:260px}
+`;
+
+function renderTokens(app, t, tz) {
+  if (t.error) return `<section><header><h2>API tokens</h2></header><div class="errbox">Could not load the tokens: ${esc(t.error)}</div></section>`;
+  const fieldHtml = (f) => {
+    const cls = f.when ? ` class="when-${esc(f.when.field)}-${esc(f.when.value)}"` : "";
+    if (f.type === "select") return `<label${cls}>${esc(f.label)}<select name="${esc(f.name)}"${f.required ? " required" : ""}>${f.options.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("")}</select></label>`;
+    if (f.type === "text") {
+      const list = f.suggest?.length ? `<datalist id="dl-${esc(f.name)}">${f.suggest.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>` : "";
+      return `<label${cls}>${esc(f.label)}<input name="${esc(f.name)}" maxlength="48" autocomplete="off" placeholder="${esc(f.placeholder || "")}"${list ? ` list="dl-${esc(f.name)}"` : ""}>${list}</label>`;
+    }
+    return "";
+  };
+  const extra = (t.fields || []).map(fieldHtml).join("");
+  // Fields that only matter for one choice of another field ("new agent…") appear when it's picked.
+  const whenCss = [...new Set((t.fields || []).filter((f) => f.when).map((f) => `${f.when.field}|${f.when.value}`))]
+    .map((k) => { const [fl, v] = k.split("|"); return `.tokform .when-${fl}-${v}{display:none}.tokform:has(select[name=${fl}] option[value=${v}]:checked) .when-${fl}-${v}{display:flex}`; })
+    .join("");
+  const tomorrow = new Date(Date.now() + 86400e3).toISOString().slice(0, 10);
+  const form = `${whenCss ? `<style>${whenCss}</style>` : ""}<form class="tokform" method="post" action="/apps/${esc(app.id)}/tokens">
+${extra}<label>label<input name="label" required maxlength="80" placeholder="e.g. laptop, ShareX at home, CI" autocomplete="off"></label>
+<label>expires<select name="expires">${EXPIRY_CHOICES.map(([v, l]) => `<option value="${v}"${v === "90" ? " selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
+<label class="date">expiry date<input type="date" name="expires_date" min="${tomorrow}"></label>
+<button class="btn sm">create token</button></form>`;
+  const rows = t.rows.length
+    ? t.rows.map((r) => {
+        const st = tokenState(r);
+        return `<tr><td>${esc(r.label) || '<span class="muted">no label</span>'}</td><td class="mono">${esc(r.prefix)}…</td>${t.hasOwner ? `<td>${esc(r.owner || "")}</td>` : ""}<td>${timeEl(r.created_at, tz)}</td><td>${timeEl(r.expires_at, tz, "never")}</td><td>${timeEl(r.last_used_at, tz, "never")}</td>
+<td><span class="status"><span class="seed ${st === "active" ? "up" : st === "expired" ? "warn" : "down"}"></span>${st}</span></td>
+<td class="act">${st === "revoked" ? "" : `<form method="post" action="/apps/${esc(app.id)}/tokens/revoke" onsubmit="return confirm(${esc(JSON.stringify(`Revoke “${r.label || r.prefix}”? Anything using it stops working right away.`))})"><input type="hidden" name="id" value="${esc(r.id)}"><button class="btn sm danger">revoke</button></form>`}</td></tr>`;
+      }).join("")
+    : `<tr><td colspan="${t.hasOwner ? 8 : 7}" class="muted" style="padding:22px 10px">No tokens yet.</td></tr>`;
+  return `<section><header><h2>API tokens</h2><span class="muted" style="font-size:13px;max-width:52ch">${esc(t.about || "")}</span></header>
+<div class="panel">${form}<p class="muted" style="font-size:13px;margin:12px 0 0">The token is shown once, right after you create it. field keeps only a hash.</p></div>
+<div class="tablewrap" style="margin-top:16px"><table><thead><tr><th>label</th><th>token</th>${t.hasOwner ? `<th>${esc(t.ownerLabel || "owner")}</th>` : ""}<th>created</th><th>expires</th><th>last used</th><th>state</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
+
+/** Shown once, straight in the POST response, never via a redirect or a URL. */
+export function tokenCreatedPage(env, { user, app, label, created, expiresAt, tz }) {
+  const body = `<div class="head"><div><span class="label"><a href="/" style="color:inherit">overview</a> / <a href="/apps/${esc(app.id)}" style="color:inherit">${esc(app.id)}</a> / new token</span>
+<h1 style="margin-top:10px">Copy it now<em>.</em></h1><p>This is the only time field shows the token “${esc(label)}”${created.owner ? ` for ${esc(created.owner)}` : ""}. It ${expiresAt ? `expires ${esc(abs(expiresAt, tz))}` : "doesn't expire"}.</p></div></div>
+<div class="panel"><div class="secret"><code id="tok">${esc(created.secret)}</code><button class="btn" type="button" id="copy">copy</button></div>
+${created.usage ? `<p class="muted" style="font-size:14px;margin:8px 0 0">${esc(created.usage)}</p>` : ""}</div>
+<p style="margin-top:24px"><a class="btn ghost sm" href="/apps/${esc(app.id)}">done, back to ${esc(app.name)}</a></p>
+<script>document.getElementById('copy').onclick=async e=>{try{await navigator.clipboard.writeText(document.getElementById('tok').textContent);e.target.textContent='copied'}catch(x){getSelection().selectAllChildren(document.getElementById('tok'))}};history.replaceState(null,'','/apps/${esc(app.id)}')</script>`;
+  return layout(env, { title: "new token", user, body, extraCss: appCss + tokenCss });
 }
 
 // ---------- audit ----------
