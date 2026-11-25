@@ -3,8 +3,9 @@ import convert from "./convert.js";
 import grow from "./grow.js";
 import roots from "./roots.js";
 import rhizome from "./rhizome.js";
+import leaf from "./leaf.js";
 
-const ADAPTERS = { drop, convert, grow, roots, rhizome };
+const ADAPTERS = { drop, convert, grow, roots, rhizome, leaf };
 
 /** The admin adapter for an app, or null if none is configured or its bindings are missing. */
 export function adapterFor(env, app) {

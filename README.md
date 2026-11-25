@@ -17,11 +17,12 @@ field runs as a single Cloudflare Worker behind Cloudflare Access. Every five mi
   | [grow](https://github.com/shiftbloom-studio/grow) (OBS to-do overlays) | channels, active, Twitch-linked, open sessions | sign a channel out, delete a channel |
   | [roots](https://github.com/shiftbloom-studio/roots) (knowledge base) | documents, chunks, sources, last indexed | re-sync one source or all of them |
   | [rhizome](https://github.com/shiftbloom-studio/rhizome) (memory for AI agents) | people, agent clients, active keys, last key use | add an agent client together with its first key |
+  | [leaf](https://github.com/shiftbloom-studio/leaf) (pastebin) | pastes, text stored, views, new today, expiring soon | search, filter anonymous pastes, delete a paste (with the optional `LEAF_PASTES` R2 binding) |
 
-- **API tokens** for the apps that have an API (drop and rhizome): create a token with a label and an expiry date, see when it was last used, revoke it. The token is shown once, right after it's created, in the response itself (never in a URL or the audit log). The apps store and check only its SHA-256 hash and refuse it once it has expired or was revoked. See [API tokens](#api-tokens).
+- **API tokens** for the apps that have an API (drop, rhizome and leaf): create a token with a label and an expiry date, see when it was last used, revoke it. The token is shown once, right after it's created, in the response itself (never in a URL or the audit log). The apps store and check only its SHA-256 hash and refuse it once it has expired or was revoked. See [API tokens](#api-tokens).
 - **Token requests** from drop's public form: approve for 90 days or a year, or reject. field only records the decision; drop generates the token when the requester collects it through their private link, so field never sees it.
 - **Protocol** of every admin action, with who did it and when.
-- **Alerts** to a Discord or Slack webhook when something goes down and when it comes back.
+- **Alerts** by email and/or to a Discord or Slack webhook when something goes down and when it comes back. Each change is sent once, never every five minutes.
 - **Imprint and privacy policy** in English and German (`/imprint`, `/impressum`, `/privacy`, `/datenschutz`), filled from the `OPERATOR` config. They are the only pages reachable without signing in; give them a bypass rule in your Access application.
 - **`/api/status`** as JSON, for scripts and agents (send a Cloudflare Access service token).
 - Placeholders for services that don't exist yet, so the overview already shows what's coming.
@@ -47,6 +48,7 @@ Everything tenant-specific lives in `wrangler.jsonc`:
 | `ORG_NAME`, `SOURCE_URL` | footer text and source link |
 | `OPERATOR` | your details for the imprint and privacy policy (see `wrangler.jsonc`) |
 | `ALERT_WEBHOOK` (secret) | optional Discord/Slack incoming webhook |
+| `ALERT_MAIL` (send_email binding), `ALERT_EMAIL_FROM`, `ALERT_EMAIL_TO` | optional alert emails through [Cloudflare Email Sending](https://developers.cloudflare.com/email-service/); the sender's domain must be onboarded |
 | `CF_API_TOKEN` (secret), `CF_ACCOUNT_ID` | optional, turn on the account watchers below |
 | `AI_HOURLY_NEURONS`, `AI_DAILY_USD` | Workers AI alert limits, default 2,000,000 neurons per hour and 7 USD per day |
 | `ACCESS_WATCH_PRODUCTS` | audit log products to watch for changes, comma separated, default `access` |
@@ -63,7 +65,7 @@ An entry in `APPS`:
   "health": "/health",          // path to probe, default "/"
   "expect": [200],              // optional, default: any 2xx/3xx
   "db": "DROP_DB",              // optional D1 binding to ping
-  "adapter": "drop"             // optional: drop | convert | grow | roots | rhizome
+  "adapter": "drop"             // optional: drop | convert | grow | roots | rhizome | leaf
 }
 ```
 
@@ -90,6 +92,7 @@ field writes tokens straight into the app's own D1 database, in the format that 
 | --- | --- | --- | --- | --- |
 | drop | `api_tokens` | `drop_` + 40 characters | unix seconds | drop migration `0004_api_tokens.sql` |
 | rhizome | `api_keys` (one client per agent and provider) | `rz_` + 32 characters | epoch milliseconds | rhizome migration `0002_key_label_expiry.sql` |
+| leaf | `api_tokens` | `leaf_` + 40 characters | unix seconds | leaf migration `0001_init.sql` |
 
 Expiry choices are 30, 90 or 180 days, one year, a date (end of that day, UTC) or never. Creating and revoking are written to the audit log with label and token prefix. For rhizome you either pick an existing agent client or choose *new agent…* and enter its agent and provider slugs; the new client gets rhizome's default grants (shared profile, all projects, its own agent scope).
 
@@ -116,7 +119,7 @@ Two things Cloudflare's own notifications don't cover, checked from the same cro
 - **Workers AI usage.** Once an hour field sums the neurons of the last hour and of the day so far (GraphQL `aiInferenceAdaptiveGroups`). It opens an incident and sends an alert when the last hour is above `AI_HOURLY_NEURONS`, or when the day so far, extrapolated to 24 hours, would cost more than `AI_DAILY_USD`. The incident closes once usage is back under both limits.
 - **Access changes.** Every five minutes field reads the account audit log for anything other than a read on Access (`ACCESS_WATCH_PRODUCTS`) since the last run, and posts one alert listing the changes. The first run only sets the starting point.
 
-Both show up under Incidents on the overview and go to `ALERT_WEBHOOK`. They need a read-only API token, stored as the `CF_API_TOKEN` secret, plus `CF_ACCOUNT_ID`:
+Both show up under Incidents on the overview and go to the alert channels (email and/or `ALERT_WEBHOOK`). They need a read-only API token, stored as the `CF_API_TOKEN` secret, plus `CF_ACCOUNT_ID`:
 
 1. Cloudflare dashboard → Manage account → Account API tokens → Create token → Create custom token.
 2. Permissions: Account · Account Analytics · Read, and Account · Account Settings · Read. Nothing else.
