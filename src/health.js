@@ -41,7 +41,7 @@ export async function probe(env, app) {
   return { ok: !error, status, ms: Date.now() - started, error, detail };
 }
 
-async function alert(env, text) {
+export async function alert(env, text) {
   if (!env.ALERT_WEBHOOK) return;
   // Works with Discord ("content") and Slack-compatible ("text") incoming webhooks.
   await fetch(env.ALERT_WEBHOOK, {

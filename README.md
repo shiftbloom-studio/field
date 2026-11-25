@@ -44,6 +44,9 @@ Everything tenant-specific lives in `wrangler.jsonc`:
 | `ORG_NAME`, `SOURCE_URL` | footer text and source link |
 | `OPERATOR` | your details for the imprint and privacy policy (see `wrangler.jsonc`) |
 | `ALERT_WEBHOOK` (secret) | optional Discord/Slack incoming webhook |
+| `CF_API_TOKEN` (secret), `CF_ACCOUNT_ID` | optional, turn on the account watchers below |
+| `AI_HOURLY_NEURONS`, `AI_DAILY_USD` | Workers AI alert limits, default 2,000,000 neurons per hour and 7 USD per day |
+| `ACCESS_WATCH_PRODUCTS` | audit log products to watch for changes, comma separated, default `access` |
 
 An entry in `APPS`:
 
@@ -89,3 +92,17 @@ No build step: the Worker is plain ES modules.
 ## License
 
 [AGPL-3.0-or-later](LICENSE). If you run a modified field for other people, offer them the source; the footer link (`SOURCE_URL`) is there for that.
+
+## Account watchers
+
+Two things Cloudflare's own notifications don't cover, checked from the same cron:
+
+- **Workers AI usage.** Once an hour field sums the neurons of the last hour and of the day so far (GraphQL `aiInferenceAdaptiveGroups`). It opens an incident and sends an alert when the last hour is above `AI_HOURLY_NEURONS`, or when the day so far, extrapolated to 24 hours, would cost more than `AI_DAILY_USD`. The incident closes once usage is back under both limits.
+- **Access changes.** Every five minutes field reads the account audit log for anything other than a read on Access (`ACCESS_WATCH_PRODUCTS`) since the last run, and posts one alert listing the changes. The first run only sets the starting point.
+
+Both show up under Incidents on the overview and go to `ALERT_WEBHOOK`. They need a read-only API token, stored as the `CF_API_TOKEN` secret, plus `CF_ACCOUNT_ID`:
+
+1. Cloudflare dashboard → Manage account → Account API tokens → Create token → Create custom token.
+2. Permissions: Account · Account Analytics · Read, and Account · Account Settings · Read. Nothing else.
+3. Account resources: include only the account field runs in. Optionally set an expiry and IP filtering.
+4. `npx wrangler secret put CF_API_TOKEN` and paste the token.

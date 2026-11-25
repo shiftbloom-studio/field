@@ -1,3 +1,4 @@
+import { WATCHERS } from "./watch.js";
 import { bloom, css, esc, SPARK } from "./brand.js";
 
 // ---------- formatting ----------
@@ -139,7 +140,18 @@ ${st && !st.ok && st.error ? `<div class="err">${esc(st.error)}</div>` : ""}
     ? `<ul class="list">${incidents
         .map((x) => {
           const a = list.find((l) => l.id === x.app);
-          return `<li><span class="seed ${x.resolved_at ? "up" : "down"}"></span><a href="/apps/${esc(x.app)}"><b>${esc(a?.name || x.app)}</b></a><span class="muted">${x.resolved_at ? `down for ${dur(x.resolved_at - x.started_at)}, ${timeEl(x.started_at, tz)}` : `down for ${dur(Date.now() / 1000 - x.started_at)} and counting`}</span><span class="mono muted" style="margin-left:auto">${esc(x.error || "")}</span></li>`;
+          const watcher = !a && WATCHERS[x.app];
+          const name = watcher ? `<b>${esc(watcher)}</b>` : `<a href="/apps/${esc(x.app)}"><b>${esc(a?.name || x.app)}</b></a>`;
+          const when = watcher
+            ? x.resolved_at && x.resolved_at === x.started_at
+              ? timeEl(x.started_at, tz)
+              : x.resolved_at
+                ? `for ${dur(x.resolved_at - x.started_at)}, ${timeEl(x.started_at, tz)}`
+                : `for ${dur(Date.now() / 1000 - x.started_at)} and counting`
+            : x.resolved_at
+              ? `down for ${dur(x.resolved_at - x.started_at)}, ${timeEl(x.started_at, tz)}`
+              : `down for ${dur(Date.now() / 1000 - x.started_at)} and counting`;
+          return `<li><span class="seed ${x.resolved_at ? "up" : "down"}"></span>${name}<span class="muted">${when}</span><span class="mono muted" style="margin-left:auto">${esc(x.error || "")}</span></li>`;
         })
         .join("")}</ul>`
     : `<p class="muted">No incidents in the last seven days.</p>`;

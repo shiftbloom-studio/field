@@ -5,6 +5,7 @@ import { verifyAccess } from "./auth.js";
 import { apps, app as findApp, links, tz } from "./config.js";
 import { runAll, prune, probe, record, uptime, history, historyAll } from "./health.js";
 import { adapterFor } from "./adapters/index.js";
+import { runWatchers, WATCHERS } from "./watch.js";
 import { handleAsset } from "./assets.js";
 import { imprint, privacy } from "./legal.js";
 import { faviconSvg } from "./brand.js";
@@ -191,8 +192,8 @@ export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
       (async () => {
-        await runAll(env);
         const d = new Date(event.scheduledTime);
+        await Promise.all([runAll(env), runWatchers(env, d)]);
         if (d.getUTCHours() === 3 && d.getUTCMinutes() < 5) await prune(env);
       })(),
     );

@@ -3,6 +3,7 @@
 // Keep the two languages in step: when one changes, change the other.
 import { esc } from "./brand.js";
 import { layout } from "./ui.js";
+import { watchEnabled } from "./watch.js";
 
 const UPDATED = { en: "Last updated 25 November 2026", de: "Stand: 25. November 2026" };
 
@@ -58,6 +59,7 @@ export function privacy(env, lang, host) {
   const o = operator(env);
   const de = lang === "de";
   const h = esc(host);
+  const watch = watchEnabled(env);
   const controller = o
     ? `${address(o, lang)}<p>${de ? "E-Mail" : "Email"}: <a href="mailto:${esc(o.email)}">${esc(o.email)}</a></p>`
     : missing(lang);
@@ -76,7 +78,9 @@ export function privacy(env, lang, host) {
 <h2>Protokoll der Verwaltungsaktionen</h2>
 <p>Wenn du in field etwas änderst, etwa einen Upload löschst oder eine Quelle neu synchronisierst, speichern wir deine E-Mail-Adresse, den Zeitpunkt, den Dienst, die Aktion, ihr Ziel und das Ergebnis. So bleibt nachvollziehbar, wer was geändert hat. Die Einträge werden nach einem Jahr gelöscht. Rechtsgrundlage ist unser berechtigtes Interesse an nachvollziehbaren Änderungen an unseren Diensten (Art. 6 Abs. 1 lit. f DSGVO).</p>
 <h2>Verfügbarkeitsprüfungen</h2>
-<p>field prüft alle fünf Minuten, ob unsere Dienste antworten, und speichert Ergebnis, Statuscode und Antwortzeit für 30 Tage. Diese Prüfungen enthalten keine personenbezogenen Daten.</p>
+<p>field prüft alle fünf Minuten, ob unsere Dienste antworten, und speichert Ergebnis, Statuscode und Antwortzeit für 30 Tage. Diese Prüfungen enthalten keine personenbezogenen Daten.</p>${watch ? `
+<h2>Kontoüberwachung</h2>
+<p>field liest das Audit-Log unseres Cloudflare-Kontos, um Änderungen an den Zugangseinstellungen (Cloudflare Access) zu erkennen. Bei einer Änderung speichert field, was geändert wurde und wer es war (E-Mail-Adresse oder Name des API-Tokens), zeigt es unter „Incidents“ an und schickt es an unseren Alarmkanal. Die Einträge werden nach 30 Tagen gelöscht. Rechtsgrundlage ist unser berechtigtes Interesse an der Sicherheit unserer Dienste (Art. 6 Abs. 1 lit. f DSGVO).</p>` : ""}
 <h2>Daten anderer Dienste</h2>
 <p>Die Verwaltungsansichten zeigen Daten aus unseren anderen Diensten, etwa Dateinamen von Uploads oder Kanalnamen. field speichert sie nicht selbst, sondern liest sie bei jedem Aufruf aus der Datenbank des jeweiligen Dienstes. Für diese Daten gelten die Datenschutzerklärungen der jeweiligen Dienste.</p>
 <h2>E-Mail</h2>
@@ -95,7 +99,9 @@ export function privacy(env, lang, host) {
 <h2>Audit log</h2>
 <p>When you change something in field, for example delete an upload or re-sync a source, we store your email address, the time, the service, the action, its target and the result, so it stays clear who changed what. Entries are deleted after one year. The legal basis is our legitimate interest in traceable changes to our services (Art. 6(1)(f) GDPR).</p>
 <h2>Health checks</h2>
-<p>Every five minutes field checks whether our services answer and keeps the result, status code and response time for 30 days. These checks contain no personal data.</p>
+<p>Every five minutes field checks whether our services answer and keeps the result, status code and response time for 30 days. These checks contain no personal data.</p>${watch ? `
+<h2>Account monitoring</h2>
+<p>field reads the audit log of our Cloudflare account to spot changes to the sign-in settings (Cloudflare Access). When something changes, field stores what changed and who changed it (email address or API token name), shows it under Incidents and sends it to our alert channel. These entries are deleted after 30 days. The legal basis is our legitimate interest in keeping our services secure (Art. 6(1)(f) GDPR).</p>` : ""}
 <h2>Data from other services</h2>
 <p>The admin views show data from our other services, such as file names of uploads or channel names. field doesn't store it itself; it reads it from that service's database each time you open the view. That data is covered by the privacy policy of the service it belongs to.</p>
 <h2>Email</h2>
