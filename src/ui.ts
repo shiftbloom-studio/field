@@ -226,7 +226,7 @@ function cell(col: Column, row: Row, tz: string): string {
 
 const cap = (t: unknown): string => String(t).charAt(0).toUpperCase() + String(t).slice(1);
 const actionForm = (appId: string, a: Action, id: unknown, cls = ""): string =>
-  `<form method="post" action="/apps/${esc(appId)}/actions/${esc(a.action)}"${a.confirm ? ` onsubmit="return confirm(${esc(JSON.stringify(a.confirm))})"` : ""}><input type="hidden" name="id" value="${esc(id)}">${(a.inputs || []).map((i) => `<input type="${i.type || "text"}" name="${esc(i.name)}" placeholder="${esc(i.placeholder)}"${i.required ? " required" : ""}${i.maxlength ? ` maxlength="${i.maxlength}"` : ""}>`).join("")}<button class="btn sm ${a.danger ? "danger" : "ghost"} ${cls}">${esc(cap(a.label))}</button></form>`;
+  `<form method="post" action="/apps/${esc(appId)}/actions/${esc(a.action)}"${a.confirm ? ` onsubmit="return confirm(${esc(JSON.stringify(a.confirm))})"` : ""}><input type="hidden" name="id" value="${esc(id)}">${(a.inputs || []).map((i) => `<input type="${i.type || "text"}" name="${esc(i.name)}" placeholder="${esc(i.placeholder)}" aria-label="${esc(i.placeholder)}"${i.required ? " required" : ""}${i.maxlength ? ` maxlength="${i.maxlength}"` : ""}>`).join("")}<button class="btn sm ${a.danger ? "danger" : "ghost"} ${cls}">${esc(cap(a.label))}</button></form>`;
 
 function renderTable(app: App, t: Table, tz: string): string {
   const key = t.key || ((r: Row) => r.id);
