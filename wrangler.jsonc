@@ -51,6 +51,8 @@
     // Cloudflare Access: your team domain and the AUD tag of the Access application in front of field.
     "ACCESS_TEAM_DOMAIN": "<your-team>.cloudflareaccess.com",
     "ACCESS_AUD": "<access-application-aud>",
+    // Access emails that may manage rhizome keys for every person. Everyone else only for the person linked to their email.
+    "OWNER_EMAILS": "<you@example.com>",
     "ORG_NAME": "shiftbloom studio",
     "TZ": "Europe/Berlin",
     "RETENTION_DAYS": "30",

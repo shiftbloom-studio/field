@@ -103,7 +103,7 @@ async function detail(req: Request, env: Env, user: User, app: App): Promise<Res
       [tiles, panel, tokens] = await Promise.all([
         ad.stats(env, app),
         ad.panel(env, app, params),
-        tp && Promise.all([tp.list(env, app), tp.fields ? tp.fields(env, app) : []])
+        tp && Promise.all([tp.list(env, app, user), tp.fields ? tp.fields(env, app, user) : []])
           .then(([rows, fields]): TokensView => ({ rows, fields, about: tp.about, ownerLabel: tp.ownerLabel, hasOwner: rows.some((r) => r.owner) }))
           // e.g. the app's token migration isn't applied yet: show that, keep the rest of the page
           .catch((e): TokensView => (console.error("tokens", app.id, e), { rows: [], fields: [], about: tp.about, error: String(e?.message || e) })),
@@ -147,7 +147,7 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
 
   let user: User | null = await verifyAccess(req, env).catch((e) => (console.error("access", e), null));
   // Local development only: `wrangler dev` with DEV_BYPASS_ACCESS=true in .dev.vars.
-  if (!user && env.DEV_BYPASS_ACCESS === "true" && ["localhost", "127.0.0.1"].includes(url.hostname)) user = { email: "dev@localhost" };
+  if (!user && env.DEV_BYPASS_ACCESS === "true" && ["localhost", "127.0.0.1"].includes(url.hostname)) user = { email: "dev@localhost", owner: env.DEV_AS_MEMBER !== "true" };
   if (!user) return html(errorPage(env, 401, "Sign in to continue"), 401);
 
   if (m === "GET" && path === "/") return overview(req, env, user);
@@ -183,7 +183,7 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
         const id = String(form.get("id") || "");
         const entry = await auditStart(env, user, app.id, "revoke-token", id);
         try {
-          const n = await tp.revoke(env, id);
+          const n = await tp.revoke(env, id, user);
           await auditFinish(env, entry, null, n ? "revoked" : "was already revoked");
           return back(here, "ok", n ? "Token revoked. It stops working right away." : "That token was already revoked.");
         } catch (e) {

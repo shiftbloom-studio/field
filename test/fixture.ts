@@ -51,10 +51,10 @@ export async function boot(extra = {}) {
   await ex(env.DROP_DB, "CREATE TABLE token_requests (id TEXT PRIMARY KEY, name TEXT NOT NULL, reason TEXT NOT NULL, claim_hash TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'pending', label TEXT, token_expires_at INTEGER, created_at INTEGER NOT NULL, decided_at INTEGER, claimed_at INTEGER, token_id TEXT)");
   await ex(env.DROP_DB, `INSERT INTO token_requests (id, name, reason, claim_hash, created_at) VALUES ('req000000001', 'Ada <b>L</b>', 'Screenshots for the team', 'h1', ${Math.floor(Date.now() / 1000)}), ('req000000002', 'Spam', 'Buy things now please', 'h2', ${Math.floor(Date.now() / 1000)})`);
   await ex(env.DROP_DB, "CREATE TABLE api_tokens (id TEXT PRIMARY KEY, label TEXT NOT NULL, prefix TEXT NOT NULL, hash TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, created_by TEXT, expires_at INTEGER, last_used_at INTEGER, revoked_at INTEGER)");
-  await ex(env.RHIZOME_DB, "CREATE TABLE users (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at INTEGER NOT NULL)");
+  await ex(env.RHIZOME_DB, "CREATE TABLE users (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at INTEGER NOT NULL, email TEXT UNIQUE)");
   await ex(env.RHIZOME_DB, "CREATE TABLE clients (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, agent TEXT NOT NULL, provider TEXT NOT NULL, grants TEXT NOT NULL, created_at INTEGER NOT NULL, revoked_at INTEGER)");
   await ex(env.RHIZOME_DB, "CREATE TABLE api_keys (hash TEXT PRIMARY KEY, prefix TEXT NOT NULL, client_id TEXT NOT NULL, created_at INTEGER NOT NULL, last_used_at INTEGER, revoked_at INTEGER, label TEXT, expires_at INTEGER)");
-  await ex(env.RHIZOME_DB, `INSERT INTO users VALUES ('u1','me',${Date.now()})`);
+  await ex(env.RHIZOME_DB, `INSERT INTO users (id, name, created_at, email) VALUES ('u1','me',${Date.now()},'owner@example.org')`);
   await ex(env.RHIZOME_DB, `INSERT INTO clients VALUES ('c1','u1','claude-code (anthropic)','claude-code','anthropic','{}',${Date.now()},NULL)`);
   await ex(env.LEAF_DB, "CREATE TABLE pastes (id TEXT PRIMARY KEY, title TEXT, lang TEXT NOT NULL, size INTEGER NOT NULL, lines INTEGER NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER, burn INTEGER NOT NULL DEFAULT 0, delete_hash TEXT NOT NULL, owner TEXT, views INTEGER NOT NULL DEFAULT 0)");
   await ex(env.LEAF_DB, "CREATE TABLE api_tokens (id TEXT PRIMARY KEY, label TEXT NOT NULL, prefix TEXT NOT NULL, hash TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, created_by TEXT, expires_at INTEGER, last_used_at INTEGER, revoked_at INTEGER)");

@@ -1,2 +1,4 @@
 # Copy to .dev.vars for `npm run dev`. Skips the Access check on localhost only.
 DEV_BYPASS_ACCESS=true
+# Uncomment to try field as a member instead of an owner (rhizome keys limited to your own person).
+# DEV_AS_MEMBER=true

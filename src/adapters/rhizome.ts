@@ -3,7 +3,7 @@
 // Keys follow rhizome's own format: "rz_" + 32 base36 characters, SHA-256 hex in api_keys.hash,
 // times in epoch milliseconds (rhizome migration 0002 adds label and expires_at).
 import { randomToken, sha256Hex } from "../tokens.ts";
-import type { Adapter, Env, TokenRow } from "../types.ts";
+import type { Adapter, Env, TokenRow, User } from "../types.ts";
 
 const db = (env: Env) => env.RHIZOME_DB!;
 const BASE36 = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -17,13 +17,28 @@ function newId(): string {
   return Date.now().toString(36).padStart(9, "0") + randomToken("", 12, BASE36);
 }
 
+/**
+ * The rhizome people a field user may mint and manage keys for. Owners: everyone.
+ * Members: only the person linked to their own Access email, because a key for someone
+ * else's client reads that person's memory. No linked person means no keys at all.
+ */
+async function peopleFor(env: Env, user: User): Promise<{ id: string; name: string }[]> {
+  if (user.owner) return (await db(env).prepare("SELECT id, name FROM users ORDER BY created_at").all<{ id: string; name: string }>()).results;
+  return (await db(env).prepare("SELECT id, name FROM users WHERE email IS NOT NULL AND lower(email) = lower(?)").bind(user.email).all<{ id: string; name: string }>()).results;
+}
+
+/** SQL filter on clients c for a member, or "1" for owners; binds are appended in order. */
+const scope = (user: User): [string, unknown[]] =>
+  user.owner ? ["1", []] : ["c.user_id IN (SELECT id FROM users WHERE email IS NOT NULL AND lower(email) = lower(?))", [user.email]];
+
 /** Finds or creates the client for agent + provider of one person. */
-async function ensureClient(env: Env, form: FormData): Promise<{ id: string; name: string }> {
+async function ensureClient(env: Env, form: FormData, user: User): Promise<{ id: string; name: string }> {
   const agent = String(form.get("agent") || "").trim().toLowerCase();
   const provider = String(form.get("provider") || "").trim().toLowerCase();
   if (!SLUG.test(agent)) throw new Error("Agent must be a lowercase slug, e.g. claude-code or hermes.");
   if (!SLUG.test(provider)) throw new Error("Provider must be a lowercase slug, e.g. anthropic or openai.");
-  const users = (await db(env).prepare("SELECT id FROM users ORDER BY created_at").all<{ id: string }>()).results;
+  const users = await peopleFor(env, user);
+  if (!users.length) throw new Error("No rhizome memory is linked to your email yet.");
   const userId = String(form.get("person") || "") || (users.length === 1 ? users[0].id : "");
   if (!users.some((u) => u.id === userId)) throw new Error("Pick the person this agent works for.");
   const existing = await db(env).prepare("SELECT id, name FROM clients WHERE user_id = ? AND agent = ? AND provider = ? AND revoked_at IS NULL").bind(userId, agent, provider).first<{ id: string; name: string }>();
@@ -36,12 +51,13 @@ async function ensureClient(env: Env, form: FormData): Promise<{ id: string; nam
 
 const sec = (ms: number | null | undefined): number | null => (ms == null ? null : Math.floor(ms / 1000));
 
-async function activeClients(env: Env): Promise<{ id: string; name: string; agent: string; provider: string; user: string }[]> {
+async function activeClients(env: Env, user: User): Promise<{ id: string; name: string; agent: string; provider: string; user: string }[]> {
+  const [where, binds] = scope(user);
   const { results } = await db(env).prepare(
     `SELECT c.id, c.name, c.agent, c.provider, u.name AS user
        FROM clients c JOIN users u ON u.id = c.user_id
-      WHERE c.revoked_at IS NULL ORDER BY u.name, c.name`,
-  ).all<{ id: string; name: string; agent: string; provider: string; user: string }>();
+      WHERE c.revoked_at IS NULL AND ${where} ORDER BY u.name, c.name`,
+  ).bind(...binds).all<{ id: string; name: string; agent: string; provider: string; user: string }>();
   return results;
 }
 
@@ -95,11 +111,8 @@ export default {
     binds: ["RHIZOME_DB"],
     ownerLabel: "client",
     about: "Each key belongs to one agent client and only sees the scopes that client is granted: the shared profile, all projects and the agent's own scope. A client can hold several keys, e.g. one per machine.",
-    async fields(env) {
-      const [clients, users] = await Promise.all([
-        activeClients(env),
-        db(env).prepare("SELECT id, name FROM users ORDER BY created_at").all<{ id: string; name: string }>().then((r) => r.results),
-      ]);
+    async fields(env, _app, user) {
+      const [clients, users] = await Promise.all([activeClients(env, user), peopleFor(env, user)]);
       const isNew = { field: "client", value: "new" };
       return [
         { name: "client", label: "agent", type: "select", required: true, options: [...clients.map((c): [string, string] => [c.id, `${c.name} · ${c.user}`]), ["new", "new agent…"]] },
@@ -108,20 +121,23 @@ export default {
         ...(users.length > 1 ? [{ name: "person", label: "for", type: "select" as const, options: users.map((u): [string, string] => [u.id, u.name]), when: isNew }] : []),
       ];
     },
-    async list(env) {
+    async list(env, _app, user) {
+      const [where, binds] = scope(user);
       const { results } = await db(env).prepare(
         `SELECT k.rowid AS id, COALESCE(k.label, '') AS label, k.prefix, c.name AS owner,
                 k.created_at, k.expires_at, k.last_used_at, COALESCE(k.revoked_at, c.revoked_at) AS revoked_at
            FROM api_keys k JOIN clients c ON c.id = k.client_id
+          WHERE ${where}
           ORDER BY COALESCE(k.revoked_at, c.revoked_at) IS NOT NULL, k.created_at DESC LIMIT 200`,
-      ).all<TokenRow>();
+      ).bind(...binds).all<TokenRow>();
       return results.map((r) => ({ ...r, created_at: sec(r.created_at), expires_at: sec(r.expires_at), last_used_at: sec(r.last_used_at), revoked_at: sec(r.revoked_at) }));
     },
-    async create(env, { label, expiresAt, form }) {
+    async create(env, { label, expiresAt, form, user }) {
       const clientId = String(form.get("client") || "");
+      const [where, binds] = scope(user);
       const client = clientId === "new"
-        ? await ensureClient(env, form)
-        : await db(env).prepare("SELECT id, name FROM clients WHERE id = ? AND revoked_at IS NULL").bind(clientId).first<{ id: string; name: string }>();
+        ? await ensureClient(env, form, user)
+        : await db(env).prepare(`SELECT c.id, c.name FROM clients c WHERE c.id = ? AND c.revoked_at IS NULL AND ${where}`).bind(clientId, ...binds).first<{ id: string; name: string }>();
       if (!client) throw new Error("Pick an active client for the key.");
       const secret = randomToken("rz_", 32, BASE36);
       const r = await db(env).prepare(
@@ -132,9 +148,13 @@ export default {
         usage: "Send it as Authorization: Bearer <key> to rhizome's /v1/memory endpoints.",
       };
     },
-    async revoke(env, id) {
+    async revoke(env, id, user) {
       if (!/^\d{1,12}$/.test(id)) throw new Error("invalid key id");
-      const r = await db(env).prepare("UPDATE api_keys SET revoked_at = ? WHERE rowid = ? AND revoked_at IS NULL").bind(Date.now(), Number(id)).run();
+      const [where, binds] = scope(user);
+      const r = await db(env).prepare(
+        `UPDATE api_keys SET revoked_at = ? WHERE rowid = ? AND revoked_at IS NULL
+            AND client_id IN (SELECT c.id FROM clients c WHERE ${where})`,
+      ).bind(Date.now(), Number(id), ...binds).run();
       return r.meta?.changes ?? 0;
     },
   },

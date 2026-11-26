@@ -61,6 +61,7 @@ Everything tenant-specific lives in `wrangler.jsonc`:
 | `LINKS` | extra shortcuts on the overview: `{ name, url, note }` |
 | `ACCESS_TEAM_DOMAIN` | e.g. `yourteam.cloudflareaccess.com` |
 | `ACCESS_AUD` | AUD tag of the Access application in front of field |
+| `OWNER_EMAILS` | comma-separated Access emails with full rhizome key access. Everyone else who passes Access is a member: they can use every token manager, but rhizome keys only for the rhizome person linked to their own email. Unset means nobody is an owner |
 | `TZ` | time zone for dates, default `Europe/Berlin` |
 | `RETENTION_DAYS` | how long check history is kept, default 30 |
 | `ORG_NAME`, `SOURCE_URL` | footer text and source link |
