@@ -80,12 +80,13 @@ export default {
     ];
   },
 
-  async panel(env) {
+  async panel(env, _app, _params, user) {
+    const [where, binds] = scope(user);
     const { results } = await db(env).prepare(
       `SELECT c.id, c.name, c.agent, c.provider, u.name AS user, c.created_at, c.revoked_at,
-              (SELECT COUNT(*) FROM api_keys k WHERE k.client_id = c.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > ?1)) AS keys
-         FROM clients c JOIN users u ON u.id = c.user_id ORDER BY c.revoked_at IS NOT NULL, u.name, c.name`,
-    ).bind(Date.now()).all();
+              (SELECT COUNT(*) FROM api_keys k WHERE k.client_id = c.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > ?)) AS keys
+         FROM clients c JOIN users u ON u.id = c.user_id WHERE ${where} ORDER BY c.revoked_at IS NOT NULL, u.name, c.name`,
+    ).bind(Date.now(), ...binds).all();
     return {
       tables: [{
         title: "agent clients",

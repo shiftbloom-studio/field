@@ -102,7 +102,7 @@ async function detail(req: Request, env: Env, user: User, app: App): Promise<Res
     try {
       [tiles, panel, tokens] = await Promise.all([
         ad.stats(env, app),
-        ad.panel(env, app, params),
+        ad.panel(env, app, params, user),
         tp && Promise.all([tp.list(env, app, user), tp.fields ? tp.fields(env, app, user) : []])
           .then(([rows, fields]): TokensView => ({ rows, fields, about: tp.about, ownerLabel: tp.ownerLabel, hasOwner: rows.some((r) => r.owner) }))
           // e.g. the app's token migration isn't applied yet: show that, keep the rest of the page

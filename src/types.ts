@@ -264,7 +264,7 @@ export interface TokenProvider {
 export interface Adapter {
   binds: string[];
   stats: (env: Env, app: App) => Promise<Tile[]>;
-  panel: (env: Env, app: App, params: URLSearchParams) => Promise<Panel>;
+  panel: (env: Env, app: App, params: URLSearchParams, user: User) => Promise<Panel>;
   actions: Record<string, ActionFn>;
   tokens?: TokenProvider;
 }
