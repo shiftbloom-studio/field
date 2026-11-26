@@ -81,3 +81,18 @@ test("members keep the other token managers", async () => {
   assert.equal(r.status, 200);
   assert.match(await r.text(), /<code id="tok">drop_/);
 });
+
+test("members cannot add rhizome people or see the people list", async () => {
+  const page = await (await get("/apps/rhizome")).text();
+  assert.doesNotMatch(page, /actions\/add-person/);
+  assert.doesNotMatch(page, /owner@example\.org/);
+  const r = await post("/apps/rhizome/actions/add-person", { id: "*", name: "Me Too", email: "other@example.org" });
+  assert.equal(r.status, 403);
+  assert.equal(await env.RHIZOME_DB.prepare("SELECT 1 FROM users WHERE email = 'other@example.org'").first(), null);
+});
+
+test("members only see their own clients in the rhizome admin table", async () => {
+  const page = await (await get("/apps/rhizome")).text();
+  assert.doesNotMatch(page, /claude-code \(anthropic\)/);
+  assert.match(page, /codex \(openai\)/);
+});

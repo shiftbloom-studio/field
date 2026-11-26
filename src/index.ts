@@ -86,6 +86,13 @@ async function overview(req: Request, env: Env, user: User): Promise<Response> {
   }));
 }
 
+/** Removes owner-only actions from a panel shown to a member. */
+function hideOwnerActions(p: Panel, ownerOnly: string[] | undefined): Panel {
+  if (!ownerOnly?.length) return p;
+  const keep = (a: { action: string }) => !ownerOnly.includes(a.action);
+  return { ...p, actions: p.actions?.filter(keep), tables: p.tables.map((t) => ({ ...t, rowActions: t.rowActions?.filter(keep) })) };
+}
+
 async function detail(req: Request, env: Env, user: User, app: App): Promise<Response> {
   const params = new URL(req.url).searchParams;
   const ad = adapterFor(env, app);
@@ -102,7 +109,7 @@ async function detail(req: Request, env: Env, user: User, app: App): Promise<Res
     try {
       [tiles, panel, tokens] = await Promise.all([
         ad.stats(env, app),
-        ad.panel(env, app, params),
+        ad.panel(env, app, params, user).then((p) => (user.owner ? p : hideOwnerActions(p, ad.ownerOnly))),
         tp && Promise.all([tp.list(env, app, user), tp.fields ? tp.fields(env, app, user) : []])
           .then(([rows, fields]): TokensView => ({ rows, fields, about: tp.about, ownerLabel: tp.ownerLabel, hasOwner: rows.some((r) => r.owner) }))
           // e.g. the app's token migration isn't applied yet: show that, keep the rest of the page
@@ -208,6 +215,7 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
       const ad = adapterFor(env, app);
       const fn = ad?.actions?.[am[3]];
       if (!fn) return html(errorPage(env, 404, "No such action"), 404);
+      if (!user.owner && ad?.ownerOnly?.includes(am[3])) return html(errorPage(env, 403, "Only an owner can do that"), 403);
       const form = await req.formData();
       const entry = await auditStart(env, user, app.id, am[3], String(form.get("id") || ""));
       try {

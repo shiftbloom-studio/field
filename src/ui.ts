@@ -193,6 +193,7 @@ section{margin-top:44px}section>header{display:flex;justify-content:space-betwee
 .strip.big{height:48px}
 .axis{display:flex;justify-content:space-between;margin-top:6px}
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filters form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .filters label{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--ink60)}
 .errbox{font:12px/1.5 var(--mono);color:var(--root);background:var(--blush);border-radius:12px;padding:12px 14px;margin-top:14px;white-space:pre-wrap;word-break:break-word}
 pre.detail{font:12px/1.5 var(--mono);background:var(--ink);color:#fff;border-radius:12px;padding:12px 14px;overflow:auto;margin:14px 0 0}
@@ -225,7 +226,7 @@ function cell(col: Column, row: Row, tz: string): string {
 
 const cap = (t: unknown): string => String(t).charAt(0).toUpperCase() + String(t).slice(1);
 const actionForm = (appId: string, a: Action, id: unknown, cls = ""): string =>
-  `<form method="post" action="/apps/${esc(appId)}/actions/${esc(a.action)}"${a.confirm ? ` onsubmit="return confirm(${esc(JSON.stringify(a.confirm))})"` : ""}><input type="hidden" name="id" value="${esc(id)}"><button class="btn sm ${a.danger ? "danger" : "ghost"} ${cls}">${esc(cap(a.label))}</button></form>`;
+  `<form method="post" action="/apps/${esc(appId)}/actions/${esc(a.action)}"${a.confirm ? ` onsubmit="return confirm(${esc(JSON.stringify(a.confirm))})"` : ""}><input type="hidden" name="id" value="${esc(id)}">${(a.inputs || []).map((i) => `<input type="${i.type || "text"}" name="${esc(i.name)}" placeholder="${esc(i.placeholder)}"${i.required ? " required" : ""}${i.maxlength ? ` maxlength="${i.maxlength}"` : ""}>`).join("")}<button class="btn sm ${a.danger ? "danger" : "ghost"} ${cls}">${esc(cap(a.label))}</button></form>`;
 
 function renderTable(app: App, t: Table, tz: string): string {
   const key = t.key || ((r: Row) => r.id);

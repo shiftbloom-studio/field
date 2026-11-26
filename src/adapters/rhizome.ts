@@ -80,32 +80,72 @@ export default {
     ];
   },
 
-  async panel(env) {
+  async panel(env, _app, _params, user) {
+    const [where, binds] = scope(user);
     const { results } = await db(env).prepare(
       `SELECT c.id, c.name, c.agent, c.provider, u.name AS user, c.created_at, c.revoked_at,
-              (SELECT COUNT(*) FROM api_keys k WHERE k.client_id = c.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > ?1)) AS keys
-         FROM clients c JOIN users u ON u.id = c.user_id ORDER BY c.revoked_at IS NOT NULL, u.name, c.name`,
-    ).bind(Date.now()).all();
+              (SELECT COUNT(*) FROM api_keys k WHERE k.client_id = c.id AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > ?)) AS keys
+         FROM clients c JOIN users u ON u.id = c.user_id WHERE ${where} ORDER BY c.revoked_at IS NOT NULL, u.name, c.name`,
+    ).bind(Date.now(), ...binds).all();
+    const clients = {
+      title: "agent clients",
+      note: "One client per agent and provider. Pick “new agent” above to add one together with its first key.",
+      empty: "No clients yet.",
+      columns: [
+        { key: "name", label: "client" },
+        { key: "agent", label: "agent", type: "mono" as const },
+        { key: "provider", label: "provider", type: "tag" as const },
+        { key: "user", label: "person" },
+        { key: "keys", label: "active keys", type: "num" as const },
+        { key: "created_at", label: "created", type: "time_ms" as const },
+        { key: "revoked_at", label: "revoked", type: "time_ms" as const, none: "–" },
+      ],
+      rows: results,
+    };
+    if (!user.owner) return { tables: [clients] };
+    const people = (await db(env).prepare(
+      `SELECT u.id, u.name, u.email, u.created_at, (SELECT COUNT(*) FROM clients c WHERE c.user_id = u.id AND c.revoked_at IS NULL) AS clients
+         FROM users u ORDER BY u.created_at`,
+    ).all()).results;
     return {
-      tables: [{
-        title: "agent clients",
-        note: "One client per agent and provider. Pick “new agent” above to add one together with its first key.",
-        empty: "No clients yet.",
-        columns: [
-          { key: "name", label: "client" },
-          { key: "agent", label: "agent", type: "mono" },
-          { key: "provider", label: "provider", type: "tag" },
-          { key: "user", label: "person" },
-          { key: "keys", label: "active keys", type: "num" },
-          { key: "created_at", label: "created", type: "time_ms" },
-          { key: "revoked_at", label: "revoked", type: "time_ms", none: "–" },
+      actions: [{
+        action: "add-person", label: "add person",
+        inputs: [
+          { name: "name", placeholder: "name", required: true, maxlength: 80 },
+          { name: "email", placeholder: "email they sign in with", type: "email", required: true, maxlength: 254 },
         ],
-        rows: results,
       }],
+      tables: [{
+        title: "people",
+        note: "Each person has their own memory. They open it by signing in with the email linked here.",
+        empty: "Nobody yet.",
+        columns: [
+          { key: "name", label: "person" },
+          { key: "email", label: "email", type: "mono", none: "not linked" },
+          { key: "clients", label: "agent clients", type: "num" },
+          { key: "created_at", label: "added", type: "time_ms" },
+        ],
+        rows: people,
+      }, clients],
     };
   },
 
-  actions: {},
+  ownerOnly: ["add-person"],
+
+  actions: {
+    // Creates the row rhizome looks up on sign-in. Memory storage appears on first use.
+    async "add-person"(env, _app, form) {
+      const name = String(form.get("name") || "").trim().replace(/\s+/g, " ");
+      const email = String(form.get("email") || "").trim().toLowerCase();
+      if (!name || name.length > 80) throw new Error("Give the person a name, up to 80 characters.");
+      if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("That email doesn't look right.");
+      const taken = await db(env).prepare("SELECT name FROM users WHERE email = ?").bind(email).first<{ name: string }>();
+      if (taken) throw new Error(`${email} is already linked to ${taken.name}.`);
+      const id = newId();
+      await db(env).prepare("INSERT INTO users (id, name, created_at, email) VALUES (?, ?, ?, ?)").bind(id, name, Date.now(), email).run();
+      return { target: `${name} (${id})`, message: `${name} can now open rhizome by signing in as ${email}.` };
+    },
+  },
 
   tokens: {
     binds: ["RHIZOME_DB"],
