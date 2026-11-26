@@ -38,6 +38,15 @@ test("member sees only their own rhizome keys and clients", async () => {
   assert.doesNotMatch(t, /name="person"/, "no person picker for members");
 });
 
+test("member's agent client table lists only their own clients", async () => {
+  const html = await (await get("/apps/rhizome")).text();
+  const start = html.indexOf("<h3>agent clients</h3>");
+  assert.ok(start > 0);
+  const panel = html.slice(start, html.indexOf("</table>", start));
+  assert.match(panel, /codex \(openai\)/);
+  assert.doesNotMatch(panel, /claude-code \(anthropic\)/);
+});
+
 test("member cannot mint a key for the owner's client or person", async () => {
   let r = await post("/apps/rhizome/tokens", { label: "steal", expires: "30", client: "c1" });
   assert.match(r.headers.get("location"), /err=/);
