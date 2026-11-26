@@ -79,6 +79,8 @@ export interface Env {
   RETENTION_DAYS?: string;
   SOURCE_URL?: string;
   DEV_BYPASS_ACCESS?: string;
+  OWNER_EMAILS?: string;
+  DEV_AS_MEMBER?: string;
   CF_API_TOKEN?: string;
   CF_ACCOUNT_ID?: string;
   AI_HOURLY_NEURONS?: string | number;
@@ -92,6 +94,8 @@ export interface Env {
 
 export interface User {
   email: string;
+  /** Listed in OWNER_EMAILS. Everyone else who passes Access is a member. */
+  owner: boolean;
 }
 
 // ---------- D1 rows of field's own database ----------
@@ -251,16 +255,16 @@ export interface TokenProvider {
   binds: string[];
   about: string;
   ownerLabel?: string;
-  fields?: (env: Env, app: App) => Promise<TokenField[]>;
-  list: (env: Env, app: App) => Promise<TokenRow[]>;
+  fields?: (env: Env, app: App, user: User) => Promise<TokenField[]>;
+  list: (env: Env, app: App, user: User) => Promise<TokenRow[]>;
   create: (env: Env, t: TokenInput) => Promise<CreatedToken>;
-  revoke: (env: Env, id: string) => Promise<number>;
+  revoke: (env: Env, id: string, user: User) => Promise<number>;
 }
 
 export interface Adapter {
   binds: string[];
   stats: (env: Env, app: App) => Promise<Tile[]>;
-  panel: (env: Env, app: App, params: URLSearchParams) => Promise<Panel>;
+  panel: (env: Env, app: App, params: URLSearchParams, user: User) => Promise<Panel>;
   actions: Record<string, ActionFn>;
   tokens?: TokenProvider;
 }

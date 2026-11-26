@@ -23,7 +23,13 @@ async function keys(team: string, force = false): Promise<AccessJwk[]> {
   return jwks.keys!;
 }
 
-/** Returns { email } for a valid Access token, otherwise null. */
+/** True if the email is listed in OWNER_EMAILS (comma or whitespace separated, case-insensitive). Unset means nobody. */
+export function isOwner(env: Env, email: string): boolean {
+  const list = String(env.OWNER_EMAILS || "").toLowerCase().split(/[\s,]+/).filter(Boolean);
+  return list.includes(email.trim().toLowerCase());
+}
+
+/** Returns { email, owner } for a valid Access token, otherwise null. */
 export async function verifyAccess(request: Request, env: Env): Promise<User | null> {
   const token =
     request.headers.get("Cf-Access-Jwt-Assertion") ||
@@ -51,5 +57,7 @@ export async function verifyAccess(request: Request, env: Env): Promise<User | n
   if (payload.iss !== `https://${env.ACCESS_TEAM_DOMAIN}`) return null;
   const auds = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
   if (!auds.includes(env.ACCESS_AUD)) return null;
-  return { email: payload.email || payload.common_name || "service-token" };
+  // Service tokens carry no email, so they never count as an owner.
+  const email = payload.email || payload.common_name || "service-token";
+  return { email, owner: !!payload.email && isOwner(env, payload.email) };
 }
