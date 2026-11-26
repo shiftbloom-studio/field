@@ -1,10 +1,14 @@
-# field
+# field.
+
+One dashboard for every shiftbloom app: status, health checks and API tokens in one place.
+
+**Live:** internal, behind Cloudflare Access · **License:** AGPL-3.0-or-later
 
 The intranet hub of shiftbloom studio. One page that tells you whether everything is up, and one place to clean up after your apps.
 
 field runs as a single Cloudflare Worker behind Cloudflare Access. Every five minutes it checks each service, writes the result to D1 and turns two failed checks in a row into an incident. For apps it knows, it also shows usage numbers and a few admin actions: delete an upload, reset a rate limit, sign a streamer out, queue a re-sync.
 
-## What you get
+## Features
 
 - **Overview** of all services with live status, 24-hour uptime strip, response time and the two most useful numbers per app.
 - **Detail page** per service: uptime for 24 h / 7 days / 30 days, a 7-day strip, the last checks, incidents and the raw health response.
@@ -32,6 +36,20 @@ field runs as a single Cloudflare Worker behind Cloudflare Access. Every five mi
 field prefers [service bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/) over public URLs. The request never leaves Cloudflare, costs nothing extra and isn't blocked by the Access login of the app it checks. Apps without a binding are fetched over their public `url`.
 
 A check passes when the HTTP status is 2xx/3xx (or one of the statuses in `expect`) and, if `db` is set, a `SELECT 1` against that D1 database succeeds. roots answers `401` to anything without an Access token, so its entry expects exactly that.
+
+## Account watchers
+
+Two things Cloudflare's own notifications don't cover, checked from the same cron:
+
+- **Workers AI usage.** Once an hour field sums the neurons of the last hour and of the day so far (GraphQL `aiInferenceAdaptiveGroups`). It opens an incident and sends an alert when the last hour is above `AI_HOURLY_NEURONS`, or when the day so far, extrapolated to 24 hours, would cost more than `AI_DAILY_USD`. The incident closes once usage is back under both limits.
+- **Access changes.** Every five minutes field reads the account audit log for anything other than a read on Access (`ACCESS_WATCH_PRODUCTS`) since the last run, and posts one alert listing the changes. The first run only sets the starting point.
+
+Both show up under Incidents on the overview and go to the alert channels (email and/or `ALERT_WEBHOOK`). They need a read-only API token, stored as the `CF_API_TOKEN` secret, plus `CF_ACCOUNT_ID`:
+
+1. Cloudflare dashboard → Manage account → Account API tokens → Create token → Create custom token.
+2. Permissions: Account · Account Analytics · Read, and Account · Account Settings · Read. Nothing else.
+3. Account resources: include only the account field runs in. Optionally set an expiry and IP filtering.
+4. `npx wrangler secret put CF_API_TOKEN` and paste the token.
 
 ## Configuration
 
@@ -71,6 +89,12 @@ An entry in `APPS`:
 
 Set `"status": "planned"` for a service that isn't live yet. Adapters switch themselves off when their bindings are missing, so you can run field with only health checks.
 
+## Tech stack
+
+- TypeScript, bundled by Wrangler
+- Cloudflare Workers with D1, R2, Queues, service bindings, Email Sending and a Cron Trigger, behind Cloudflare Access
+- Node.js 26 for builds and tests. The tests boot field in Miniflare with fake apps and use `node:test`.
+
 ## Self-hosting
 
 ```sh
@@ -83,6 +107,10 @@ npx wrangler deploy
 Then, in Cloudflare Zero Trust, create a self-hosted Access application for field's hostname, copy its AUD tag into `ACCESS_AUD` and deploy again. Add a second Access application with a Bypass policy for the legal pages (`/privacy`, `/datenschutz`, `/imprint`, `/impressum`) plus `/favicon.svg` and `/assets/*`, so anyone can read them. Without a valid Access token field answers only those pages and `/health`.
 
 For the admin adapters, add the D1 ids of your apps (and the R2 bucket / queue where listed) to `wrangler.jsonc`. field writes to those databases, so only give it the ones you want to manage from here.
+
+### Deploy with Workers Builds
+
+The shiftbloom instance deploys with Workers Builds on every push to `main`, and no API token is stored on GitHub. Connect the repository to the Worker in the Cloudflare dashboard (Settings > Build). `wrangler.jsonc` only holds placeholders like `<your-field-db-id>`, so the build command fills in the real ids from build variables and writes a separate deploy config, and the deploy command runs `npx wrangler deploy` with that config and `--keep-vars`. Your vars and secrets stay in the dashboard and never go into the repository. The build picks up Node 26 from `.node-version`.
 
 ## API tokens
 
@@ -103,25 +131,26 @@ To add tokens for another app, give its adapter a `tokens` provider (`list`, `cr
 ```sh
 cp .dev.vars.example .dev.vars
 npm run dev      # Access check is skipped on localhost only
-npm test         # boots field in Miniflare with fake apps and runs every page and action
+npm run typecheck
+npm test         # builds, then boots field in Miniflare with fake apps and runs every page and action
 ```
 
-No build step: the Worker is plain ES modules.
+field is written in TypeScript. Wrangler bundles it, so there is no separate build step for deploys.
+
+## Contributing
+
+Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Security
+
+Please don't report vulnerabilities in public issues. Use GitHub's private vulnerability reporting on this repository or email [safety@shiftbloom.studio](mailto:safety@shiftbloom.studio). [SECURITY.md](SECURITY.md) has the details.
 
 ## License
 
-[AGPL-3.0-or-later](LICENSE). If you run a modified field for other people, offer them the source; the footer link (`SOURCE_URL`) is there for that.
+Copyright © 2026 shiftbloom studio and contributors.
 
-## Account watchers
+field is free software under the [GNU Affero General Public License](LICENSE), version 3 or (at your option) any later version (`AGPL-3.0-or-later`). If you run a modified field for other people, offer them the source; the footer link (`SOURCE_URL`) is there for that.
 
-Two things Cloudflare's own notifications don't cover, checked from the same cron:
+---
 
-- **Workers AI usage.** Once an hour field sums the neurons of the last hour and of the day so far (GraphQL `aiInferenceAdaptiveGroups`). It opens an incident and sends an alert when the last hour is above `AI_HOURLY_NEURONS`, or when the day so far, extrapolated to 24 hours, would cost more than `AI_DAILY_USD`. The incident closes once usage is back under both limits.
-- **Access changes.** Every five minutes field reads the account audit log for anything other than a read on Access (`ACCESS_WATCH_PRODUCTS`) since the last run, and posts one alert listing the changes. The first run only sets the starting point.
-
-Both show up under Incidents on the overview and go to the alert channels (email and/or `ALERT_WEBHOOK`). They need a read-only API token, stored as the `CF_API_TOKEN` secret, plus `CF_ACCOUNT_ID`:
-
-1. Cloudflare dashboard → Manage account → Account API tokens → Create token → Create custom token.
-2. Permissions: Account · Account Analytics · Read, and Account · Account Settings · Read. Nothing else.
-3. Account resources: include only the account field runs in. Optionally set an expiry and IP filtering.
-4. `npx wrangler secret put CF_API_TOKEN` and paste the token.
+field is part of [shiftbloom studio](https://shiftbloom.studio), an open studio from Hamburg. All of our apps are open source at [github.com/shiftbloom-studio](https://github.com/shiftbloom-studio).
