@@ -56,7 +56,10 @@ export interface AlertMail {
  * Bindings and vars. Everything except DB is optional: a missing binding hides its admin screen.
  * Bindings named in APPS (service, db) are looked up by name, hence the index signature.
  */
-export interface Env {
+import type { PostHogEnv } from "./posthog.ts";
+
+/** POSTHOG_KEY (secret) and POSTHOG_HOST: error tracking and uptime metrics, see src/posthog.ts. */
+export interface Env extends PostHogEnv {
   DB: D1Database;
   DROP_DB?: D1Database;
   CONVERT_DB?: D1Database;

@@ -64,6 +64,7 @@ Everything tenant-specific lives in `wrangler.jsonc`:
 | `OWNER_EMAILS` | comma-separated Access emails with full rhizome key access who can add rhizome people. Everyone else who passes Access is a member: they can use every token manager, but rhizome keys only for the rhizome person linked to their own email. Unset means nobody is an owner |
 | `TZ` | time zone for dates, default `Europe/Berlin` |
 | `RETENTION_DAYS` | how long check history is kept, default 30 |
+| `POSTHOG_KEY` (secret), `POSTHOG_HOST` | optional: Worker errors as `$exception` and one `uptime_checked` event per cron run (per app up/down and latency) to PostHog; no user data, no browser script. The privacy policy gets a section when set |
 | `ORG_NAME`, `SOURCE_URL` | footer text and source link |
 | `OPERATOR` | your details for the imprint and privacy policy (see `wrangler.jsonc`) |
 | `ALERT_WEBHOOK` (secret) | optional Discord/Slack incoming webhook |
