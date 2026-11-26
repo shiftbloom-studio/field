@@ -3,13 +3,14 @@
 // and admin screens that talk to each app through bindings.
 import { verifyAccess } from "./auth.ts";
 import { apps, app as findApp, links, tz } from "./config.ts";
-import { runAll, prune, probe, record, uptime, history, historyAll } from "./health.ts";
+import { runAll, prune, probe, record, uptime, uptimeProps, history, historyAll } from "./health.ts";
 import { adapterFor, tokensFor } from "./adapters/index.ts";
 import { readTokenForm } from "./tokens.ts";
 import { runWatchers, WATCHERS } from "./watch.ts";
 import { handleAsset } from "./assets.ts";
 import { imprint, privacy } from "./legal.ts";
 import { faviconSvg } from "./brand.ts";
+import { phCapture, phException } from "./posthog.ts";
 import { overviewPage, appPage, auditPage, errorPage, health, tokenCreatedPage } from "./ui.ts";
 import type { App, AuditRow, CheckRow, Env, IncidentRow, Panel, StateRow, Tile, TokensView, User } from "./types.ts";
 
@@ -237,6 +238,7 @@ export default {
       return await route(req, env, ctx);
     } catch (e) {
       console.error(e);
+      phException(env, ctx, e, { route: new URL(req.url).pathname.split("/").slice(0, 2).join("/") || "/" });
       return html(errorPage(env, 500, "Something went wrong"), 500);
     }
   },
@@ -245,9 +247,13 @@ export default {
     ctx.waitUntil(
       (async () => {
         const d = new Date(event.scheduledTime);
-        await Promise.all([runAll(env), runWatchers(env, d)]);
+        const [results] = await Promise.all([runAll(env), runWatchers(env, d)]);
+        await phCapture(env, null, "uptime_checked", uptimeProps(results));
         if (d.getUTCHours() === 3 && d.getUTCMinutes() < 5) await prune(env);
-      })(),
+      })().catch((e) => {
+        console.error("cron failed", e);
+        return phException(env, null, e, { job: "cron" });
+      }),
     );
   },
 } satisfies ExportedHandler<Env>;

@@ -174,3 +174,16 @@ export async function historyAll(env: Env, seconds: number, buckets: number): Pr
   }
   return map;
 }
+
+/** One event per cron run, as metrics: how many apps are up, and per app whether it answered and how fast. */
+export function uptimeProps(results: Record<string, { ok?: boolean; ms?: number }>) {
+  const props: Record<string, number | boolean> = {};
+  let up = 0;
+  for (const [id, r] of Object.entries(results)) {
+    if (r.ok) up++;
+    if (!/^[a-z0-9-]{1,32}$/.test(id)) continue;
+    props[`up_${id}`] = !!r.ok;
+    if (typeof r.ms === "number") props[`ms_${id}`] = r.ms;
+  }
+  return { ...props, apps: Object.keys(results).length, apps_up: up };
+}

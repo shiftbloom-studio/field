@@ -3,6 +3,7 @@
 //  2. Access changes: every run, read the account audit log for non-read actions on Access.
 // Both need CF_API_TOKEN (secret) and CF_ACCOUNT_ID. Without them nothing runs.
 
+import { phException } from "./posthog.ts";
 import { alert } from "./health.ts";
 import type { Env } from "./types.ts";
 
@@ -117,5 +118,9 @@ export async function runWatchers(env: Env, at = new Date()): Promise<void> {
   if (!watchEnabled(env)) return;
   const jobs: Promise<unknown>[] = [checkAccessChanges(env, at)];
   if (at.getUTCMinutes() < 5) jobs.push(checkAiUsage(env, at));
-  for (const r of await Promise.allSettled(jobs)) if (r.status === "rejected") console.error("watcher failed", r.reason);
+  for (const r of await Promise.allSettled(jobs)) {
+    if (r.status !== "rejected") continue;
+    console.error("watcher failed", r.reason);
+    await phException(env, null, r.reason, { job: "watcher" });
+  }
 }

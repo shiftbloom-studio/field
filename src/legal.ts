@@ -1,12 +1,13 @@
 // Imprint (§ 5 DDG) and privacy policy (Art. 13 GDPR), in English and German.
 // Every operator detail comes from the OPERATOR var in wrangler.jsonc, never from code.
 // Keep the two languages in step: when one changes, change the other.
+import { phKey } from "./posthog.ts";
 import { esc } from "./brand.ts";
 import { layout } from "./ui.ts";
 import { watchEnabled } from "./watch.ts";
 import type { Env, Localized, Operator } from "./types.ts";
 
-const UPDATED: Record<string, string> = { en: "Last updated 25 November 2026", de: "Stand: 25. November 2026" };
+const UPDATED: Record<string, string> = { en: "Last updated 26 November 2026", de: "Stand: 26. November 2026" };
 
 function operator(env: Env): Operator | null {
   let o: any = env.OPERATOR; // raw var: an object, or JSON text
@@ -56,6 +57,15 @@ ${o.vatId ? `<p>${de ? "Umsatzsteuer-Identifikationsnummer gemäß § 27a UStG" 
   return page(env, { lang, title: de ? "Impressum" : "Imprint", other: de ? "/imprint" : "/impressum", body });
 }
 
+const PH_EN = `<h2>Error reports and uptime metrics</h2>
+<p>Our Worker reports errors in field to PostHog (with the section of the page and the job type, and with ids, addresses, email addresses and long strings removed from the message), and after each health check whether each of our services answered and how fast. No data about you is sent: no email address, IP address, page content or token, and each report gets a random id. field's pages load no analytics script.</p>
+<p>PostHog Inc., 2261 Market St. #4008, San Francisco, CA 94114, USA, stores this data for us on servers in the USA and processes it as our processor under a data processing agreement (Art. 28 GDPR). PostHog is certified under the EU-U.S. Data Privacy Framework, for which the European Commission has adopted an adequacy decision (Art. 45 GDPR); the agreement also contains the EU standard contractual clauses. We delete it after 12 months at the latest. The legal basis is our legitimate interest in running our services reliably (Art. 6(1)(f) GDPR). More in <a href="https://posthog.com/privacy" rel="noopener">PostHog's privacy policy</a>.</p>
+`;
+const PH_DE = `<h2>Fehlerberichte und Verfügbarkeitsmetriken</h2>
+<p>Unser Worker meldet Fehler in field an PostHog (mit dem Bereich der Seite und der Art des Auftrags, die Meldung ohne IDs, Adressen, E-Mail-Adressen und lange Zeichenfolgen) und nach jeder Verfügbarkeitsprüfung, ob jeder unserer Dienste geantwortet hat und wie schnell. Daten über dich werden nicht gesendet: keine E-Mail-Adresse, keine IP-Adresse, keine Seiteninhalte und keine Tokens, und jede Meldung bekommt eine zufällige ID. Die Seiten von field laden kein Analyse-Skript.</p>
+<p>PostHog Inc., 2261 Market St. #4008, San Francisco, CA 94114, USA, speichert diese Daten für uns auf Servern in den USA und verarbeitet sie als unser Auftragsverarbeiter auf Grundlage eines Auftragsverarbeitungsvertrags (Art. 28 DSGVO). PostHog ist nach dem EU-US Data Privacy Framework zertifiziert, für das die Europäische Kommission einen Angemessenheitsbeschluss erlassen hat (Art. 45 DSGVO); der Vertrag enthält zusätzlich die EU-Standardvertragsklauseln. Wir löschen sie spätestens nach 12 Monaten. Rechtsgrundlage ist unser berechtigtes Interesse an einem zuverlässigen Betrieb unserer Dienste (Art. 6 Abs. 1 lit. f DSGVO). Mehr dazu in der <a href="https://posthog.com/privacy" rel="noopener">Datenschutzerklärung von PostHog</a>.</p>
+`;
+
 export function privacy(env: Env, lang: string, host: string): string {
   const o = operator(env);
   const de = lang === "de";
@@ -84,7 +94,7 @@ export function privacy(env: Env, lang: string, host: string): string {
 <p>field liest das Audit-Log unseres Cloudflare-Kontos, um Änderungen an den Zugangseinstellungen (Cloudflare Access) zu erkennen. Bei einer Änderung speichert field, was geändert wurde und wer es war (E-Mail-Adresse oder Name des API-Tokens), zeigt es unter „Incidents“ an und schickt es an unseren Alarmkanal. Die Einträge werden nach 30 Tagen gelöscht. Rechtsgrundlage ist unser berechtigtes Interesse an der Sicherheit unserer Dienste (Art. 6 Abs. 1 lit. f DSGVO).</p>` : ""}
 <h2>Daten anderer Dienste</h2>
 <p>Die Verwaltungsansichten zeigen Daten aus unseren anderen Diensten, etwa Dateinamen von Uploads oder Kanalnamen. field speichert sie nicht selbst, sondern liest sie bei jedem Aufruf aus der Datenbank des jeweiligen Dienstes. Für diese Daten gelten die Datenschutzerklärungen der jeweiligen Dienste.</p>
-<h2>E-Mail</h2>
+${phKey(env) ? PH_DE : ""}<h2>E-Mail</h2>
 <p>Wenn du uns schreibst, nutzen wir deine Adresse und Nachricht nur, um dir zu antworten (Art. 6 Abs. 1 lit. f DSGVO), und löschen sie, sobald die Sache erledigt ist, es sei denn, das Gesetz verpflichtet uns zur Aufbewahrung.</p>
 <h2>Deine Rechte</h2>
 <p>Du hast das Recht auf Auskunft über deine personenbezogenen Daten (Art. 15 DSGVO), auf Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18) und Datenübertragbarkeit (Art. 20). Schreib uns dazu eine E-Mail. Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO)${authority}.</p>
@@ -105,7 +115,7 @@ export function privacy(env: Env, lang: string, host: string): string {
 <p>field reads the audit log of our Cloudflare account to spot changes to the sign-in settings (Cloudflare Access). When something changes, field stores what changed and who changed it (email address or API token name), shows it under Incidents and sends it to our alert channel. These entries are deleted after 30 days. The legal basis is our legitimate interest in keeping our services secure (Art. 6(1)(f) GDPR).</p>` : ""}
 <h2>Data from other services</h2>
 <p>The admin views show data from our other services, such as file names of uploads or channel names. field doesn't store it itself; it reads it from that service's database each time you open the view. That data is covered by the privacy policy of the service it belongs to.</p>
-<h2>Email</h2>
+${phKey(env) ? PH_EN : ""}<h2>Email</h2>
 <p>If you email us, we use your address and message only to reply (Art. 6(1)(f) GDPR) and delete them once the matter is settled, unless the law requires us to keep them.</p>
 <h2>Your rights</h2>
 <p>You have the right of access to your personal data (Art. 15 GDPR), to rectification (Art. 16), to erasure (Art. 17), to restriction of processing (Art. 18) and to data portability (Art. 20). To exercise them, email us. You can also lodge a complaint with a data protection supervisory authority (Art. 77 GDPR)${authority}.</p>
