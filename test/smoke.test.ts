@@ -205,3 +205,23 @@ test("overview cards show the app URL and link to its API tokens", async () => {
   assert.doesNotMatch(home, /href="\/apps\/convert#tokens"/);
   assert.match(await (await get("/apps/drop")).text(), /<section id="tokens">/);
 });
+
+test("owners add rhizome people with a linked email", async () => {
+  let r = await post("/apps/rhizome/actions/add-person", { id: "*", name: "  New  Member ", email: " New@Example.org " });
+  assert.match(r.headers.get("location"), /ok=/);
+  const u = await env.RHIZOME_DB.prepare("SELECT * FROM users WHERE email = 'new@example.org'").first();
+  assert.equal(u.name, "New Member");
+  assert.match(u.id, /^[0-9a-z]{21}$/);
+  r = await post("/apps/rhizome/actions/add-person", { id: "*", name: "Again", email: "new@example.org" });
+  assert.match(decodeURIComponent(r.headers.get("location")).replace(/\+/g, " "), /already linked to New Member/);
+  r = await post("/apps/rhizome/actions/add-person", { id: "*", name: "Bad", email: "not-an-email" });
+  assert.match(r.headers.get("location"), /err=/);
+  r = await post("/apps/rhizome/actions/add-person", { id: "*", name: "", email: "x@example.org" });
+  assert.match(r.headers.get("location"), /err=/);
+  assert.equal((await env.RHIZOME_DB.prepare("SELECT COUNT(*) AS n FROM users").first()).n, 2);
+  const page = await (await get("/apps/rhizome")).text();
+  assert.match(page, /action="\/apps\/rhizome\/actions\/add-person"/);
+  assert.match(page, /new@example\.org/);
+  const audit = await env.DB.prepare("SELECT * FROM audit WHERE action = 'add-person' ORDER BY id LIMIT 1").first();
+  assert.match(audit.target, /^New Member \(/);
+});

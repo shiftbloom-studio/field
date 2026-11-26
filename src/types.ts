@@ -181,6 +181,8 @@ export interface Column {
 export interface Action {
   action: string;
   label: string;
+  /** Text inputs posted along with the action, e.g. a name and an email. */
+  inputs?: { name: string; placeholder: string; type?: "text" | "email"; required?: boolean; maxlength?: number }[];
   confirm?: string;
   danger?: boolean;
   when?: (row: Row) => unknown;
@@ -266,6 +268,8 @@ export interface Adapter {
   stats: (env: Env, app: App) => Promise<Tile[]>;
   panel: (env: Env, app: App, params: URLSearchParams, user: User) => Promise<Panel>;
   actions: Record<string, ActionFn>;
+  /** Actions only owners (OWNER_EMAILS) may see and run. */
+  ownerOnly?: string[];
   tokens?: TokenProvider;
 }
 

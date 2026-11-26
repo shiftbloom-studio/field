@@ -20,7 +20,7 @@ field runs as a single Cloudflare Worker behind Cloudflare Access. Every five mi
   | convert (file conversion) | jobs, running, failed, output volume, daily quota | delete a job and its files, reset a daily quota counter |
   | [grow](https://github.com/shiftbloom-studio/grow) (OBS to-do overlays) | channels, active, Twitch-linked, open sessions | sign a channel out, delete a channel |
   | [roots](https://github.com/shiftbloom-studio/roots) (knowledge base) | documents, chunks, sources, last indexed | re-sync one source or all of them |
-  | [rhizome](https://github.com/shiftbloom-studio/rhizome) (memory for AI agents) | people, agent clients, active keys, last key use | add an agent client together with its first key |
+  | [rhizome](https://github.com/shiftbloom-studio/rhizome) (memory for AI agents) | people, agent clients, active keys, last key use | add an agent client together with its first key; owners add a person with the email they sign in with (rhizome migration `0003_user_email.sql`) |
   | [leaf](https://github.com/shiftbloom-studio/leaf) (pastebin) | pastes, text stored, views, new today, expiring soon | search, filter anonymous pastes, delete a paste (with the optional `LEAF_PASTES` R2 binding) |
 
 - **API tokens** for the apps that have an API (drop, rhizome and leaf): create a token with a label and an expiry date, see when it was last used, revoke it. The token is shown once, right after it's created, in the response itself (never in a URL or the audit log). The apps store and check only its SHA-256 hash and refuse it once it has expired or was revoked. See [API tokens](#api-tokens).
@@ -61,7 +61,7 @@ Everything tenant-specific lives in `wrangler.jsonc`:
 | `LINKS` | extra shortcuts on the overview: `{ name, url, note }` |
 | `ACCESS_TEAM_DOMAIN` | e.g. `yourteam.cloudflareaccess.com` |
 | `ACCESS_AUD` | AUD tag of the Access application in front of field |
-| `OWNER_EMAILS` | comma-separated Access emails with full rhizome key access. Everyone else who passes Access is a member: they can use every token manager, but rhizome keys only for the rhizome person linked to their own email. Unset means nobody is an owner |
+| `OWNER_EMAILS` | comma-separated Access emails with full rhizome key access who can add rhizome people. Everyone else who passes Access is a member: they can use every token manager, but rhizome keys only for the rhizome person linked to their own email. Unset means nobody is an owner |
 | `TZ` | time zone for dates, default `Europe/Berlin` |
 | `RETENTION_DAYS` | how long check history is kept, default 30 |
 | `ORG_NAME`, `SOURCE_URL` | footer text and source link |
