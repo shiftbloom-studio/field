@@ -158,8 +158,8 @@ export async function checkBuilds(env: Env, at = new Date()): Promise<{ failed: 
       Object.assign(latest, r.builds || r);
     }
   } catch (e) {
-    if (!/answered 403/.test(String((e as Error)?.message))) throw e;
-    // The token lacks Workers Scripts Read or Workers CI Read: say so once instead of failing every run.
+    if (!/answered 40[13]/.test(String((e as Error)?.message))) throw e;
+    // The token lacks Workers Scripts Read or Workers CI Read (the builds API answers 401 or 403): say so once instead of failing every run.
     if (!(await getKey(env, "builds_denied"))) {
       await setKey(env, "builds_denied", at.toISOString());
       await alert(env, "⚠️ field can't read Workers Builds: give CF_API_TOKEN Workers Scripts Read and Workers CI Read to get alerts for failed deploys");
