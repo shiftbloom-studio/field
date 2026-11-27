@@ -138,7 +138,7 @@ export default {
       const name = String(form.get("name") || "").trim().replace(/\s+/g, " ");
       const email = String(form.get("email") || "").trim().toLowerCase();
       if (!name || name.length > 80) throw new Error("Give the person a name, up to 80 characters.");
-      if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("That email doesn't look right.");
+      if (email.length > 254 || !looksLikeEmail(email)) throw new Error("That email doesn't look right.");
       const taken = await db(env).prepare("SELECT name FROM users WHERE email = ?").bind(email).first<{ name: string }>();
       if (taken) throw new Error(`${email} is already linked to ${taken.name}.`);
       const id = newId();
@@ -199,3 +199,12 @@ export default {
     },
   },
 } satisfies Adapter;
+
+/** Same check as /^[^\s@]+@[^\s@]+\.[^\s@]+$/ (one @, no spaces, a dot inside the domain), without backtracking. */
+function looksLikeEmail(s: string): boolean {
+  if (/\s/.test(s)) return false;
+  const parts = s.split("@");
+  if (parts.length !== 2) return false;
+  const [local, domain] = parts;
+  return local.length > 0 && domain.slice(1, -1).includes(".");
+}

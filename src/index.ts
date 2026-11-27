@@ -149,9 +149,16 @@ async function statusJson(env: Env): Promise<Response> {
   });
 }
 
+/** Same as pathname.replace(/\/+$/, ""), without a regex that backtracks on long slash runs. */
+function trimTrailingSlashes(p: string): string {
+  let end = p.length;
+  while (end > 0 && p.charCodeAt(end - 1) === 47) end--;
+  return p.slice(0, end);
+}
+
 async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(req.url);
-  const path = url.pathname.replace(/\/+$/, "") || "/";
+  const path = trimTrailingSlashes(url.pathname) || "/";
   const m = req.method;
 
   const asset = m === "GET" && (await handleAsset(req, ctx, faviconSvg()));
@@ -251,7 +258,8 @@ export default {
       return await route(req, env, ctx);
     } catch (e) {
       console.error(e);
-      phException(env, ctx, e, { route: new URL(req.url).pathname.split("/").slice(0, 2).join("/") || "/" });
+      // with ctx the event is handed to waitUntil, so the returned promise is already settled
+      void phException(env, ctx, e, { route: new URL(req.url).pathname.split("/").slice(0, 2).join("/") || "/" });
       return html(errorPage(env, 500, "Something went wrong"), 500);
     }
   },
