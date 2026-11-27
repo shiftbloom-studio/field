@@ -7,6 +7,13 @@ let mf, env;
 const alerts = [];
 let neurons = 5_000_000;
 let auditCalls = 0;
+let buildOutcome = "success";
+let previewOutcome = "fail";
+const build = (uuid, outcome, branch, includes) => ({
+  build_uuid: uuid, status: "stopped", build_outcome: outcome,
+  build_trigger_metadata: { branch, commit_hash: "abcdef1234567", commit_message: "feat: something\n\nbody" },
+  trigger: { trigger_name: "app main", branch_includes: includes },
+});
 
 before(async () => {
   ({ mf, env } = await boot({
@@ -20,6 +27,17 @@ before(async () => {
         assert.equal(u.searchParams.get("action_type.not"), "view");
         const result = auditCalls === 1 ? [] : [{ action: { description: "Update Access application", type: "update" }, actor: { email: "admin@example.org" }, resource: { product: "access" } }];
         return Response.json({ success: true, errors: [], result, result_info: {} });
+      }
+      if (u.pathname === "/client/v4/accounts/acc/workers/scripts") {
+        return Response.json({ success: true, errors: [], result: [{ id: "app", tag: "t-app" }, { id: "other", tag: "t-other" }] });
+      }
+      if (u.pathname === "/client/v4/accounts/acc/builds/builds/latest") {
+        assert.equal(u.searchParams.get("external_script_ids"), "t-app,t-other");
+        const uuid = buildOutcome === "fail" ? "b-fail" : "b-ok";
+        return Response.json({ success: true, errors: [], result: { builds: {
+          "t-app": build(uuid, buildOutcome, "main", ["main"]),
+          "t-other": build("b-preview", previewOutcome, "feature/x", ["*"]),
+        } } });
       }
       return new Response("unexpected " + u, { status: 500 });
     },
@@ -66,4 +84,21 @@ test("credit limits apply until AI_CREDIT_UNTIL, then the normal limits", async 
   assert.deepEqual(aiLimits(vars, new Date("2026-12-01T00:00:00Z")), { hourly: 200_000, dailyUsd: 1, credit: false });
   assert.deepEqual(aiLimits({ AI_CREDIT_UNTIL: "2999-01-01" }, new Date()), { hourly: 2_000_000, dailyUsd: 7, credit: true });
   assert.deepEqual(aiLimits({ AI_CREDIT_UNTIL: "not a date", AI_DAILY_USD: "3" }, new Date()), { hourly: 2_000_000, dailyUsd: 3, credit: false });
+});
+
+test("a failed production deploy alerts once and recovers; preview builds are ignored", async () => {
+  buildOutcome = "fail";
+  await tick(30);
+  await tick(31);
+  const failed = alerts.filter((a) => a.startsWith("🔴 Deploy failed for app"));
+  assert.equal(failed.length, 1);
+  assert.match(failed[0], /abcdef1 feat: something/);
+  assert.ok(!alerts.some((a) => a.includes("other")), "preview build ignored");
+  const open = await env.DB.prepare("SELECT * FROM incidents WHERE app = 'builds' AND resolved_at IS NULL").all();
+  assert.equal(open.results.length, 1);
+  buildOutcome = "success";
+  await tick(32);
+  assert.ok(alerts.some((a) => a.startsWith("🟢 app deploys again")));
+  const still = await env.DB.prepare("SELECT * FROM incidents WHERE app = 'builds' AND resolved_at IS NULL").all();
+  assert.equal(still.results.length, 0);
 });
