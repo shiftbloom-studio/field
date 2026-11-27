@@ -1,13 +1,21 @@
 // Account watchers: things Cloudflare has no native notification for.
 //  1. Workers AI usage: once an hour, sum the neurons of the last hour and of the day so far.
 //  2. Access changes: every run, read the account audit log for non-read actions on Access.
-// Both need CF_API_TOKEN (secret) and CF_ACCOUNT_ID. Without them nothing runs.
+//  3. Workers Builds: every run, look at the latest build of each Worker and alert when a production deploy failed.
+// All need CF_API_TOKEN (secret) and CF_ACCOUNT_ID. Without them nothing runs.
 
 import { phException } from "./posthog.ts";
 import { alert } from "./health.ts";
 import type { Env } from "./types.ts";
 
 interface CfResponse { success?: boolean; errors?: { message: string }[]; [key: string]: any }
+interface Build {
+  build_uuid?: string;
+  status?: string;
+  build_outcome?: string | null;
+  build_trigger_metadata?: { branch?: string; commit_hash?: string; commit_message?: string };
+  trigger?: { trigger_name?: string; branch_includes?: string[] };
+}
 interface AuditEvent { action?: { description?: string; type?: string }; resource?: { type?: string }; actor?: { email?: string; token_name?: string; type?: string } }
 
 const API = "https://api.cloudflare.com/client/v4";
@@ -17,6 +25,7 @@ const USD_PER_1K_NEURONS = 0.011;
 export const WATCHERS: Record<string, string> = {
   "ai-usage": "Workers AI usage",
   "access-changes": "Access changes",
+  builds: "Workers Builds",
 };
 
 export const watchEnabled = (env: Env): boolean => !!(env.CF_API_TOKEN && env.CF_ACCOUNT_ID);
@@ -126,10 +135,64 @@ export async function checkAccessChanges(env: Env, at = new Date()): Promise<{ c
   return { changes: events.length };
 }
 
+const FAILED = new Set(["fail", "terminated"]);
+
+/** A build counts when it ran for a branch its trigger names explicitly (production), not for a preview pattern. */
+const isProduction = (b: Build): boolean => {
+  const branch = b.build_trigger_metadata?.branch;
+  return !!branch && (b.trigger?.branch_includes || []).includes(branch);
+};
+
+export async function checkBuilds(env: Env, at = new Date()): Promise<{ failed: number }> {
+  const account = encodeURIComponent(env.CF_ACCOUNT_ID!);
+  let scripts: { id: string; tag: string }[];
+  let latest: Record<string, Build>;
+  try {
+    scripts = (await cf(env, `/accounts/${account}/workers/scripts`)).result || [];
+    if (!scripts.length) return { failed: 0 };
+    const q = new URLSearchParams({ external_script_ids: scripts.map((s) => s.tag).join(",") });
+    const r = (await cf(env, `/accounts/${account}/builds/builds/latest?${q}`)).result || {};
+    latest = r.builds || r;
+  } catch (e) {
+    if (!/answered 403/.test(String((e as Error)?.message))) throw e;
+    // The token lacks Workers Scripts Read or Workers CI Read: say so once instead of failing every run.
+    if (!(await getKey(env, "builds_denied"))) {
+      await setKey(env, "builds_denied", at.toISOString());
+      await alert(env, "⚠️ field can't read Workers Builds: give CF_API_TOKEN Workers Scripts Read and Workers CI Read to get alerts for failed deploys");
+    }
+    return { failed: 0 };
+  }
+
+  const ts = Math.floor((at as unknown as number) / 1000);
+  let failed = 0;
+  for (const s of scripts) {
+    const b = latest[s.tag];
+    if (!b?.build_uuid || b.status !== "stopped" || !isProduction(b)) continue;
+    const key = `build:${s.id}`;
+    const prev = JSON.parse((await getKey(env, key)) || "null") as { uuid: string; incident: number } | null;
+    const meta = b.build_trigger_metadata || {};
+    const commit = `${(meta.commit_hash || "").slice(0, 7)} ${(meta.commit_message || "").split("\n")[0]}`.trim().slice(0, 120);
+    if (FAILED.has(String(b.build_outcome))) {
+      failed++;
+      if (prev?.uuid === b.build_uuid) continue;
+      const error = `${s.id}: ${b.build_outcome} on ${meta.branch}${commit ? ` (${commit})` : ""}`;
+      const res = await env.DB.prepare("INSERT INTO incidents (app, started_at, error) VALUES ('builds', ?, ?)").bind(ts, error).run();
+      if (prev?.incident) await env.DB.prepare("UPDATE incidents SET resolved_at = ? WHERE id = ? AND resolved_at IS NULL").bind(ts, prev.incident).run();
+      await setKey(env, key, JSON.stringify({ uuid: b.build_uuid, incident: res.meta.last_row_id }));
+      await alert(env, `🔴 Deploy failed for ${s.id} (${b.trigger?.trigger_name || meta.branch}): build ${b.build_outcome}${commit ? `, commit ${commit}` : ""}. The previous version keeps running.`);
+    } else if (b.build_outcome === "success" && prev) {
+      await env.DB.prepare("UPDATE incidents SET resolved_at = ? WHERE id = ? AND resolved_at IS NULL").bind(ts, prev.incident).run();
+      await env.DB.prepare("DELETE FROM watch WHERE key = ?").bind(key).run();
+      await alert(env, `🟢 ${s.id} deploys again${commit ? ` (${commit})` : ""}`);
+    }
+  }
+  return { failed };
+}
+
 /** Called from the cron. Errors are logged, never thrown, so health checks keep running. */
 export async function runWatchers(env: Env, at = new Date()): Promise<void> {
   if (!watchEnabled(env)) return;
-  const jobs: Promise<unknown>[] = [checkAccessChanges(env, at)];
+  const jobs: Promise<unknown>[] = [checkAccessChanges(env, at), checkBuilds(env, at)];
   if (at.getUTCMinutes() < 5) jobs.push(checkAiUsage(env, at));
   for (const r of await Promise.allSettled(jobs)) {
     if (r.status !== "rejected") continue;
