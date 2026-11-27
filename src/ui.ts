@@ -62,7 +62,8 @@ export function layout(env: Env, { title, user, active = "", body, extraCss = ""
 <nav><a href="/" class="${active === "home" ? "on" : ""}">overview</a><a href="/audit" class="${active === "audit" ? "on" : ""}">audit log</a>${user ? `<span class="who">${esc(user.email)}</span>` : ""}</nav></header>
 ${body}
 <footer class="foot"><span class="label">field · intranet of ${esc(env.ORG_NAME || "shiftbloom studio")}</span><span class="label legal"><a href="/privacy">privacy</a> · <a href="/datenschutz">datenschutz</a> · <a href="/imprint">imprint</a> · <a href="/impressum">impressum</a> · <a href="${esc(source)}">source</a> · agpl-3.0</span></footer>
-</div></body></html>`;
+</div>
+<script>document.addEventListener("submit",e=>{const m=e.target.dataset&&e.target.dataset.confirm;if(m&&!confirm(m))e.preventDefault()})</script></body></html>`;
 }
 
 const flash = (params: URLSearchParams): string => {
@@ -226,7 +227,7 @@ function cell(col: Column, row: Row, tz: string): string {
 
 const cap = (t: unknown): string => String(t).charAt(0).toUpperCase() + String(t).slice(1);
 const actionForm = (appId: string, a: Action, id: unknown, cls = ""): string =>
-  `<form method="post" action="/apps/${esc(appId)}/actions/${esc(a.action)}"${a.confirm ? ` onsubmit="return confirm(${esc(JSON.stringify(a.confirm))})"` : ""}><input type="hidden" name="id" value="${esc(id)}">${(a.inputs || []).map((i) => `<input type="${i.type || "text"}" name="${esc(i.name)}" placeholder="${esc(i.placeholder)}" aria-label="${esc(i.placeholder)}"${i.required ? " required" : ""}${i.maxlength ? ` maxlength="${i.maxlength}"` : ""}>`).join("")}<button class="btn sm ${a.danger ? "danger" : "ghost"} ${cls}">${esc(cap(a.label))}</button></form>`;
+  `<form method="post" action="/apps/${esc(appId)}/actions/${esc(a.action)}"${a.confirm ? ` data-confirm="${esc(a.confirm)}"` : ""}><input type="hidden" name="id" value="${esc(id)}">${(a.inputs || []).map((i) => `<input type="${i.type || "text"}" name="${esc(i.name)}" placeholder="${esc(i.placeholder)}" aria-label="${esc(i.placeholder)}"${i.required ? " required" : ""}${i.maxlength ? ` maxlength="${i.maxlength}"` : ""}>`).join("")}<button class="btn sm ${a.danger ? "danger" : "ghost"} ${cls}">${esc(cap(a.label))}</button></form>`;
 
 function renderTable(app: App, t: Table, tz: string): string {
   const key = t.key || ((r: Row) => r.id);
@@ -345,7 +346,7 @@ ${extra}<label>label<input name="label" required maxlength="80" placeholder="e.g
         const st = tokenState(r);
         return `<tr><td>${esc(r.label) || '<span class="muted">no label</span>'}</td><td class="mono">${esc(r.prefix)}…</td>${t.hasOwner ? `<td>${esc(r.owner || "")}</td>` : ""}<td>${timeEl(r.created_at, tz)}</td><td>${timeEl(r.expires_at, tz, "never")}</td><td>${timeEl(r.last_used_at, tz, "never")}</td>
 <td><span class="status"><span class="seed ${st === "active" ? "up" : st === "expired" ? "warn" : "down"}"></span>${st}</span></td>
-<td class="act">${st === "revoked" ? "" : `<form method="post" action="/apps/${esc(app.id)}/tokens/revoke" onsubmit="return confirm(${esc(JSON.stringify(`Revoke “${r.label || r.prefix}”? Anything using it stops working right away.`))})"><input type="hidden" name="id" value="${esc(r.id)}"><button class="btn sm danger">Revoke</button></form>`}</td></tr>`;
+<td class="act">${st === "revoked" ? "" : `<form method="post" action="/apps/${esc(app.id)}/tokens/revoke" data-confirm="${esc(`Revoke “${r.label || r.prefix}”? Anything using it stops working right away.`)}"><input type="hidden" name="id" value="${esc(r.id)}"><button class="btn sm danger">Revoke</button></form>`}</td></tr>`;
       }).join("")
     : `<tr><td colspan="${t.hasOwner ? 8 : 7}" class="muted" style="padding:22px 10px">No tokens yet.</td></tr>`;
   return `<section id="tokens"><header><h2>API tokens</h2><span class="muted" style="font-size:13px;max-width:52ch">${esc(t.about || "")}</span></header>

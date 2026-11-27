@@ -46,6 +46,25 @@ test("pages render", async () => {
   assert.equal((await get("/audit")).status, 200);
 });
 
+test("CSP: scripts only from self or with the response nonce, no inline handlers", async () => {
+  const pages = ["/", "/apps/drop", "/apps/leaf", "/audit", "/privacy"];
+  const seen = new Set();
+  for (const p of pages) {
+    const r = await get(p);
+    const csp = r.headers.get("content-security-policy");
+    const nonce = csp.match(/script-src 'self' 'nonce-([A-Za-z0-9+/=]+)'/)?.[1];
+    assert.ok(nonce, `${p}: ${csp}`);
+    assert.ok(!/script-src[^;]*'unsafe-inline'/.test(csp), `${p}: no unsafe-inline for scripts`);
+    assert.ok(!seen.has(nonce), "fresh nonce per response");
+    seen.add(nonce);
+    const t = await r.text();
+    const tags = t.match(/<script\b[^>]*>/gi) || [];
+    for (const tag of tags) assert.ok(tag.includes(`nonce="${nonce}"`), `${p}: ${tag}`);
+    assert.doesNotMatch(t, /\son[a-z]+\s*=/i, `${p}: inline event handler`);
+  }
+  assert.match(await (await get("/apps/drop")).text(), /data-confirm="/);
+});
+
 test("admin actions", async () => {
   let r = await post("/apps/drop/actions/delete", { id: "AbC12" });
   assert.match(r.headers.get("location"), /ok=/);

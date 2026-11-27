@@ -14,12 +14,25 @@ import { phCapture, phException } from "./posthog.ts";
 import { overviewPage, appPage, auditPage, errorPage, health, tokenCreatedPage } from "./ui.ts";
 import type { App, AuditRow, CheckRow, Env, IncidentRow, Panel, StateRow, Tile, TokensView, User } from "./types.ts";
 
+// Scripts run only from field itself ('self', which also covers Cloudflare's /cdn-cgi/challenge-platform)
+// or inline with this response's nonce. Cloudflare reads the nonce from this header and puts it on the
+// scripts it injects (JavaScript detections), so no 'unsafe-inline' is needed.
+const csp = (nonce: string) =>
+  `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'`;
 const SECURITY = {
-  "content-security-policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
   "referrer-policy": "no-referrer",
   "x-content-type-options": "nosniff",
 };
-const html = (body: string, status = 200) => new Response(body, { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", ...SECURITY } });
+const newNonce = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
+// Every <script> field renders is its own markup (all dynamic text goes through esc(), so "<script" never
+// comes from data); each one gets the nonce here instead of threading it through every page builder.
+const html = (body: string, status = 200) => {
+  const nonce = newNonce();
+  return new Response(body.replaceAll("<script", `<script nonce="${nonce}"`), {
+    status,
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": csp(nonce), ...SECURITY },
+  });
+};
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data, null, 2), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 const back = (url: string, key: string, msg: string) => {
   const u = new URL(url);
