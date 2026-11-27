@@ -58,3 +58,12 @@ test("privacy pages mention account monitoring when it is on", async () => {
   assert.match(await (await mf.dispatchFetch("http://localhost/privacy")).text(), /Account monitoring/);
   assert.match(await (await mf.dispatchFetch("http://localhost/datenschutz")).text(), /Kontoüberwachung/);
 });
+
+test("credit limits apply until AI_CREDIT_UNTIL, then the normal limits", async () => {
+  const { aiLimits } = await import("../src/watch.ts");
+  const vars = { AI_HOURLY_NEURONS: "200000", AI_DAILY_USD: "1", AI_CREDIT_UNTIL: "2026-12-01", AI_CREDIT_HOURLY_NEURONS: "10000000", AI_CREDIT_DAILY_USD: "60" };
+  assert.deepEqual(aiLimits(vars, new Date("2026-11-30T23:59:00Z")), { hourly: 10_000_000, dailyUsd: 60, credit: true });
+  assert.deepEqual(aiLimits(vars, new Date("2026-12-01T00:00:00Z")), { hourly: 200_000, dailyUsd: 1, credit: false });
+  assert.deepEqual(aiLimits({ AI_CREDIT_UNTIL: "2999-01-01" }, new Date()), { hourly: 2_000_000, dailyUsd: 7, credit: true });
+  assert.deepEqual(aiLimits({ AI_CREDIT_UNTIL: "not a date", AI_DAILY_USD: "3" }, new Date()), { hourly: 2_000_000, dailyUsd: 3, credit: false });
+});

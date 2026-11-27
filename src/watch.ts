@@ -52,9 +52,22 @@ async function neuronsSince(env: Env, from: Date): Promise<number> {
   return j?.data?.viewer?.accounts?.[0]?.ai?.[0]?.sum?.totalNeurons || 0;
 }
 
-export async function checkAiUsage(env: Env, at = new Date()): Promise<{ hour: number; day: number; projected: number; alerting: boolean }> {
+/**
+ * The limits in force at `at`. Until AI_CREDIT_UNTIL (a date, exclusive) the AI_CREDIT_* limits apply, so a
+ * period covered by credits can allow more spend without noise and the normal limits switch on by themselves.
+ */
+export function aiLimits(env: Env, at: Date): { hourly: number; dailyUsd: number; credit: boolean } {
+  const until = env.AI_CREDIT_UNTIL ? Date.parse(String(env.AI_CREDIT_UNTIL)) : Number.NaN;
   const hourly = num(env.AI_HOURLY_NEURONS, 2_000_000);
   const dailyUsd = num(env.AI_DAILY_USD, 7);
+  if (Number.isFinite(until) && at.getTime() < until) {
+    return { hourly: num(env.AI_CREDIT_HOURLY_NEURONS, hourly), dailyUsd: num(env.AI_CREDIT_DAILY_USD, dailyUsd), credit: true };
+  }
+  return { hourly, dailyUsd, credit: false };
+}
+
+export async function checkAiUsage(env: Env, at = new Date()): Promise<{ hour: number; day: number; projected: number; alerting: boolean }> {
+  const { hourly, dailyUsd } = aiLimits(env, at);
   const midnight = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
   const [hour, day] = await Promise.all([neuronsSince(env, new Date((at as unknown as number) - 3600e3)), neuronsSince(env, midnight)]);
 
