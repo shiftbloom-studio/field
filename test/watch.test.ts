@@ -29,10 +29,13 @@ before(async () => {
         return Response.json({ success: true, errors: [], result, result_info: {} });
       }
       if (u.pathname === "/client/v4/accounts/acc/workers/scripts") {
-        return Response.json({ success: true, errors: [], result: [{ id: "app", tag: "t-app" }, { id: "other", tag: "t-other" }] });
+        const filler = Array.from({ length: 20 }, (_, i) => ({ id: `w${i}`, tag: `t-w${i}` }));
+        return Response.json({ success: true, errors: [], result: [...filler, { id: "app", tag: "t-app" }, { id: "other", tag: "t-other" }] });
       }
       if (u.pathname === "/client/v4/accounts/acc/builds/builds/latest") {
-        assert.equal(u.searchParams.get("external_script_ids"), "t-app,t-other");
+        const ids = u.searchParams.get("external_script_ids").split(",");
+        assert.ok(ids.length <= 20, "at most 20 script ids per request");
+        if (!ids.includes("t-app")) return Response.json({ success: true, errors: [], result: { builds: {} } });
         const uuid = buildOutcome === "fail" ? "b-fail" : "b-ok";
         return Response.json({ success: true, errors: [], result: { builds: {
           "t-app": build(uuid, buildOutcome, "main", ["main"]),

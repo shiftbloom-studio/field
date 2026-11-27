@@ -150,9 +150,13 @@ export async function checkBuilds(env: Env, at = new Date()): Promise<{ failed: 
   try {
     scripts = (await cf(env, `/accounts/${account}/workers/scripts`)).result || [];
     if (!scripts.length) return { failed: 0 };
-    const q = new URLSearchParams({ external_script_ids: scripts.map((s) => s.tag).join(",") });
-    const r = (await cf(env, `/accounts/${account}/builds/builds/latest?${q}`)).result || {};
-    latest = r.builds || r;
+    // The endpoint takes at most 20 script ids per request.
+    latest = {};
+    for (let i = 0; i < scripts.length; i += 20) {
+      const q = new URLSearchParams({ external_script_ids: scripts.slice(i, i + 20).map((s) => s.tag).join(",") });
+      const r = (await cf(env, `/accounts/${account}/builds/builds/latest?${q}`)).result || {};
+      Object.assign(latest, r.builds || r);
+    }
   } catch (e) {
     if (!/answered 403/.test(String((e as Error)?.message))) throw e;
     // The token lacks Workers Scripts Read or Workers CI Read: say so once instead of failing every run.
