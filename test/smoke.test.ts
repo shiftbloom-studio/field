@@ -58,9 +58,9 @@ test("CSP: scripts only from self or with the response nonce, no inline handlers
     assert.ok(!seen.has(nonce), "fresh nonce per response");
     seen.add(nonce);
     const t = await r.text();
-    const tags = t.match(/<script[^>]*>/g) || [];
+    const tags = t.match(/<script\b[^>]*>/gi) || [];
     for (const tag of tags) assert.ok(tag.includes(`nonce="${nonce}"`), `${p}: ${tag}`);
-    assert.doesNotMatch(t, /\son[a-z]+="/, `${p}: inline event handler`);
+    assert.doesNotMatch(t, /\son[a-z]+\s*=/i, `${p}: inline event handler`);
   }
   assert.match(await (await get("/apps/drop")).text(), /data-confirm="/);
 });
