@@ -39,15 +39,16 @@ A check passes when the HTTP status is 2xx/3xx (or one of the statuses in `expec
 
 ## Account watchers
 
-Two things Cloudflare's own notifications don't cover, checked from the same cron:
+Three things Cloudflare's own notifications don't cover, checked from the same cron:
 
 - **Workers AI usage.** Once an hour field sums the neurons of the last hour and of the day so far (GraphQL `aiInferenceAdaptiveGroups`). It opens an incident and sends an alert when the last hour is above `AI_HOURLY_NEURONS`, or when the day so far, extrapolated to 24 hours, would cost more than `AI_DAILY_USD`. Until the date in `AI_CREDIT_UNTIL` the limits `AI_CREDIT_HOURLY_NEURONS` and `AI_CREDIT_DAILY_USD` apply instead, for a period where credits pay for the usage; after it the normal limits take over on their own. The incident closes once usage is back under both limits.
 - **Access changes.** Every five minutes field reads the account audit log for anything other than a read on Access (`ACCESS_WATCH_PRODUCTS`) since the last run, and posts one alert listing the changes. The first run only sets the starting point.
+- **Workers Builds.** Every five minutes field looks at the latest build of each Worker. When a build for a branch its trigger names explicitly (the production branch, not a preview pattern) failed or was terminated, it opens an incident and sends one alert; the next successful build closes it. If the token can't read builds, field says so once.
 
-Both show up under Incidents on the overview and go to the alert channels (email and/or `ALERT_WEBHOOK`). They need a read-only API token, stored as the `CF_API_TOKEN` secret, plus `CF_ACCOUNT_ID`:
+All show up under Incidents on the overview and go to the alert channels (email and/or `ALERT_WEBHOOK`). They need a read-only API token, stored as the `CF_API_TOKEN` secret, plus `CF_ACCOUNT_ID`:
 
 1. Cloudflare dashboard → Manage account → Account API tokens → Create token → Create custom token.
-2. Permissions: Account · Account Analytics · Read, and Account · Account Settings · Read. Nothing else.
+2. Permissions: Account · Account Analytics · Read, Account · Account Settings · Read, Account · Workers Scripts · Read and Account · Workers CI · Read. Nothing else.
 3. Account resources: include only the account field runs in. Optionally set an expiry and IP filtering.
 4. `npx wrangler secret put CF_API_TOKEN` and paste the token.
 
