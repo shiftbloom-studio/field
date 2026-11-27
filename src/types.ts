@@ -88,6 +88,9 @@ export interface Env extends PostHogEnv {
   CF_ACCOUNT_ID?: string;
   AI_HOURLY_NEURONS?: string | number;
   AI_DAILY_USD?: string | number;
+  AI_CREDIT_UNTIL?: string;
+  AI_CREDIT_HOURLY_NEURONS?: string | number;
+  AI_CREDIT_DAILY_USD?: string | number;
   ACCESS_WATCH_PRODUCTS?: string;
   ALERT_EMAIL_FROM?: string;
   ALERT_EMAIL_TO?: string;

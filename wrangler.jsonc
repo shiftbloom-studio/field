@@ -61,6 +61,10 @@
     "CF_ACCOUNT_ID": "<your-account-id>",
     "AI_HOURLY_NEURONS": "2000000",
     "AI_DAILY_USD": "7",
+    // Optional: higher Workers AI limits until this date (exclusive, UTC), e.g. while credits cover the spend.
+    // "AI_CREDIT_UNTIL": "2026-12-01",
+    // "AI_CREDIT_HOURLY_NEURONS": "10000000",
+    // "AI_CREDIT_DAILY_USD": "60",
     "ACCESS_WATCH_PRODUCTS": "access",
     // Shown on /imprint, /impressum, /privacy and /datenschutz. Required in the EU; fill in your own details.
     // "authority" is the data protection authority responsible for the operator's address.
